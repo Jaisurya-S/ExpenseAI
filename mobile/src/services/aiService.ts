@@ -5,8 +5,9 @@ import Constants from 'expo-constants';
 const FALLBACK_KEY_B64 = "c2stb3ItdjEtYzNiYzA0OGUwYzRlYjcwYzAwNzcwNTgxNjA2Mjg3NTM1MTVjNDc2OTRhYTRmNTQzNmQxNjA2MTY0ZmU4NThmMQ==";
 const decodeFallbackKey = () => {
   try {
-    if (typeof atob !== 'undefined') return atob(FALLBACK_KEY_B64);
-    if (typeof Buffer !== 'undefined') return Buffer.from(FALLBACK_KEY_B64, 'base64').toString('utf-8');
+    const g = globalThis as any;
+    if (typeof g.atob === 'function') return g.atob(FALLBACK_KEY_B64);
+    if (g.Buffer) return g.Buffer.from(FALLBACK_KEY_B64, 'base64').toString('utf-8');
   } catch (e) {}
   return "";
 };
