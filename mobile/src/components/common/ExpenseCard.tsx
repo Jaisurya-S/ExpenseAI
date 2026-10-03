@@ -38,6 +38,23 @@ const CategoryIconMap: Record<string, React.FC<{ size: number; color: string }>>
   MoreHorizontal,
 };
 
+function formatDisplayDate(dateStr: string) {
+  try {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthIdx = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      if (monthIdx >= 0 && monthIdx < 12 && !isNaN(day)) {
+        return `${months[monthIdx]} ${day}`;
+      }
+    }
+    return dateStr;
+  } catch {
+    return dateStr;
+  }
+}
+
 export const ExpenseCard: React.FC<ExpenseCardProps> = ({
   expense,
   onPress,
@@ -45,24 +62,11 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
   showActions = true,
 }) => {
   const { profile } = useAuthStore();
-  const { colors, isDark } = useAppTheme();
+  const { colors } = useAppTheme();
   const currency = profile.currency || '₹';
 
   const catMeta = CATEGORIES[expense.category] || CATEGORIES.Other;
   const IconComponent = CategoryIconMap[catMeta.iconName] || MoreHorizontal;
-
-  const formatDisplayDate = (dateStr: string) => {
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-      if (dateStr === today) return 'Today';
-      if (dateStr === yesterday) return 'Yesterday';
-      const d = new Date(dateStr);
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    } catch {
-      return dateStr;
-    }
-  };
 
   return (
     <TouchableOpacity

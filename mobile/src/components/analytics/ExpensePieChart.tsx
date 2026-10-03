@@ -30,22 +30,28 @@ export const ExpensePieChart: React.FC<ExpensePieChartProps> = ({
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
-  // Prepare slices
-  const entries = Object.entries(categoryTotals).filter(([_, amount]) => (amount || 0) > 0);
-  const slices: SliceData[] = entries
+  // Prepare slices with precomputed cumulative offsets
+  const entries = (Object.entries(categoryTotals) as [ExpenseCategory, number][]).filter(
+    ([_, amount]) => (amount || 0) > 0
+  );
+
+  let runningOffset = 0;
+  const slicesWithOffset = entries
     .map(([cat, amount]) => {
       const val = amount || 0;
-      const meta = CATEGORIES[cat as ExpenseCategory] || CATEGORIES.Other;
+      const meta = CATEGORIES[cat] || CATEGORIES.Other;
+      const percentage = totalSpent > 0 ? (val / totalSpent) * 100 : 0;
+      const offset = runningOffset;
+      runningOffset += percentage;
       return {
-        category: cat as ExpenseCategory,
+        category: cat,
         amount: val,
-        percentage: totalSpent > 0 ? (val / totalSpent) * 100 : 0,
+        percentage,
         color: meta.color,
+        offset,
       };
     })
     .sort((a, b) => b.amount - a.amount);
-
-  let accumulatedPercent = 0;
 
   return (
     <View
@@ -83,10 +89,9 @@ export const ExpensePieChart: React.FC<ExpensePieChartProps> = ({
                 />
 
                 {/* Slices */}
-                {slices.map((slice, index) => {
+                {slicesWithOffset.map((slice, index) => {
                   const strokeDasharray = `${(slice.percentage / 100) * circumference} ${circumference}`;
-                  const strokeDashoffset = -((accumulatedPercent / 100) * circumference);
-                  accumulatedPercent += slice.percentage;
+                  const strokeDashoffset = -((slice.offset / 100) * circumference);
 
                   return (
                     <Circle
@@ -118,7 +123,7 @@ export const ExpensePieChart: React.FC<ExpensePieChartProps> = ({
 
           {/* Legend */}
           <View style={styles.legendContainer}>
-            {slices.slice(0, 5).map((slice, idx) => (
+            {slicesWithOffset.slice(0, 5).map((slice, idx) => (
               <View key={idx} style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: slice.color }]} />
                 <View style={styles.legendDetails}>
