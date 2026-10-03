@@ -170,18 +170,12 @@ export default function VoiceModal() {
         handleProcessTranscript(transcript);
       }
     } else {
-      setSpeechStatus('');
+      setSpeechStatus('Listening... Speak naturally or tap a sample phrase');
       setIsRecording(true);
       if (Platform.OS === 'web') {
         startWebSpeechRecognition();
       } else {
-        setTimeout(() => {
-          if (!transcript) {
-            setTranscript('Spent ₹450 on coffee at Starbucks with UPI');
-            handleProcessTranscript('Spent ₹450 on coffee at Starbucks with UPI');
-          }
-          setIsRecording(false);
-        }, 2200);
+        setSpeechStatus('Tap the text box or use keyboard mic 🎙️ to dictate your expense');
       }
     }
   };
@@ -190,7 +184,7 @@ export default function VoiceModal() {
     if (!textToParse.trim()) return;
 
     setIsProcessing(true);
-    setSpeechStatus('AI Parsing amount, category & merchant...');
+    setSpeechStatus('AI analyzing expense details...');
 
     try {
       const result = await parseVoiceTranscript(textToParse);
@@ -203,9 +197,10 @@ export default function VoiceModal() {
       if (result.date) setDate(result.date);
       if (result.paymentMethod) setPaymentMethod(result.paymentMethod);
 
-      setSpeechStatus(`AI matched category "${result.category}" (${Math.round(result.confidence * 100)}% confidence)`);
+      setSpeechStatus(`✨ Extracted: ${result.description} • ${currency}${result.amount} (${result.category})`);
     } catch (err) {
       console.warn('Voice parse error:', err);
+      setSpeechStatus('Could not parse voice note. Please check values below.');
     } finally {
       setIsProcessing(false);
       setIsRecording(false);
