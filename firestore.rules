@@ -1,0 +1,12 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Test mode rules (configured for initial development and testing)
+    // Allows read/write access during development
+    match /{document=**} {
+      allow read, write: if request.time < timestamp.date(2026, 11, 2);
+    }
+  }
+}
