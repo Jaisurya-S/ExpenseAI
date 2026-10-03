@@ -131,14 +131,17 @@ export default function RegisterScreen() {
               style={[
                 styles.logoCard,
                 {
-                  backgroundColor: isDark ? '#FFFFFF' : 'transparent',
-                  borderColor: isDark ? 'rgba(255,255,255,0.2)' : 'transparent',
-                  paddingHorizontal: isDark ? 16 : 0,
-                  paddingVertical: isDark ? 8 : 0,
-                  borderRadius: 18,
-                  shadowColor: '#000',
-                  shadowOpacity: isDark ? 0.25 : 0,
-                  shadowRadius: 8,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                  borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)',
+                  borderWidth: 1,
+                  paddingHorizontal: 20,
+                  paddingVertical: 12,
+                  borderRadius: 24,
+                  shadowColor: colors.cardShadow,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 12,
+                  elevation: 2,
                 },
               ]}
             >
@@ -150,7 +153,7 @@ export default function RegisterScreen() {
             </View>
             <Text style={[styles.brandTitle, { color: colors.text }]}>Create Account</Text>
             <Text style={[styles.brandSubtitle, { color: colors.textSecondary }]}>
-              Join ExpenseAi for effortless financial intelligence
+              Enterprise financial intelligence & AI budget engine
             </Text>
           </View>
 
@@ -181,19 +184,21 @@ export default function RegisterScreen() {
 
             {/* Google Signup Button */}
             <TouchableOpacity
-              activeOpacity={0.8}
+              activeOpacity={0.85}
               onPress={handleGoogleSignup}
               disabled={isLoading}
               style={[
                 styles.googleBtn,
                 {
-                  backgroundColor: '#FFFFFF',
-                  borderColor: isDark ? '#E5E7EB' : '#CBD5E1',
-                  borderWidth: isDark ? 0 : 1,
+                  backgroundColor: isDark ? '#FFFFFF' : '#FFFFFF',
+                  borderColor: isDark ? '#E2E8F0' : '#CBD5E1',
+                  borderWidth: 1,
                 },
               ]}
             >
-              <Text style={styles.googleGLogo}>G</Text>
+              <View style={styles.googleIconCircle}>
+                <Text style={styles.googleGLogo}>G</Text>
+              </View>
               <Text style={styles.googleBtnText}>Continue with Google</Text>
             </TouchableOpacity>
 
@@ -404,7 +409,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 14,
-    paddingVertical: 13,
+    paddingVertical: 12,
     marginBottom: 16,
     gap: 10,
     shadowColor: '#000',
@@ -413,13 +418,21 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  googleIconCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
   googleGLogo: {
     color: '#4285F4',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '900',
   },
   googleBtnText: {
-    color: '#1F2937',
+    color: '#1E293B',
     fontSize: 14,
     fontWeight: '700',
   },

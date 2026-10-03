@@ -130,14 +130,17 @@ export default function LoginScreen() {
               style={[
                 styles.logoCard,
                 {
-                  backgroundColor: isDark ? '#FFFFFF' : 'transparent',
-                  borderColor: isDark ? 'rgba(255,255,255,0.2)' : 'transparent',
-                  paddingHorizontal: isDark ? 16 : 0,
-                  paddingVertical: isDark ? 10 : 0,
-                  borderRadius: 20,
-                  shadowColor: '#000',
-                  shadowOpacity: isDark ? 0.25 : 0,
-                  shadowRadius: 10,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                  borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)',
+                  borderWidth: 1,
+                  paddingHorizontal: 20,
+                  paddingVertical: 12,
+                  borderRadius: 24,
+                  shadowColor: colors.cardShadow,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 12,
+                  elevation: 2,
                 },
               ]}
             >
@@ -148,7 +151,7 @@ export default function LoginScreen() {
               />
             </View>
             <Text style={[styles.brandSubtitle, { color: colors.textSecondary }]}>
-              Intelligent Expense Tracking & Auto-Categorization
+              Enterprise AI Expense Intelligence & Cashflow Architecture
             </Text>
           </View>
 
@@ -163,7 +166,12 @@ export default function LoginScreen() {
               },
             ]}
           >
-            <Text style={[styles.cardHeader, { color: colors.text }]}>Sign In</Text>
+            <View style={styles.cardHeaderRow}>
+              <Text style={[styles.cardHeader, { color: colors.text }]}>Sign In</Text>
+              <View style={[styles.enterpriseBadge, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
+                <Text style={[styles.enterpriseBadgeText, { color: colors.primary }]}>SECURE</Text>
+              </View>
+            </View>
 
             {errorMsg !== '' && (
               <View
@@ -181,25 +189,27 @@ export default function LoginScreen() {
 
             {/* Google Sign In Button */}
             <TouchableOpacity
-              activeOpacity={0.8}
+              activeOpacity={0.85}
               onPress={handleGoogleLogin}
               disabled={isLoading}
               style={[
                 styles.googleBtn,
                 {
                   backgroundColor: isDark ? '#FFFFFF' : '#FFFFFF',
-                  borderColor: isDark ? '#E5E7EB' : '#CBD5E1',
-                  borderWidth: isDark ? 0 : 1,
+                  borderColor: isDark ? '#E2E8F0' : '#CBD5E1',
+                  borderWidth: 1,
                 },
               ]}
             >
-              <Text style={styles.googleGLogo}>G</Text>
+              <View style={styles.googleIconCircle}>
+                <Text style={styles.googleGLogo}>G</Text>
+              </View>
               <Text style={styles.googleBtnText}>Continue with Google</Text>
             </TouchableOpacity>
 
             <View style={styles.dividerRow}>
               <View style={[styles.dividerLine, { backgroundColor: colors.cardBorder }]} />
-              <Text style={[styles.dividerText, { color: colors.textMuted }]}>OR WITH EMAIL</Text>
+              <Text style={[styles.dividerText, { color: colors.textMuted }]}>OR WITH WORK EMAIL</Text>
               <View style={[styles.dividerLine, { backgroundColor: colors.cardBorder }]} />
             </View>
 
@@ -361,17 +371,34 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     elevation: 4,
   },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
   cardHeader: {
     fontSize: 20,
     fontWeight: '800',
-    marginBottom: 16,
+    letterSpacing: -0.5,
+  },
+  enterpriseBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  enterpriseBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
   },
   googleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 14,
-    paddingVertical: 13,
+    paddingVertical: 12,
     marginBottom: 16,
     gap: 10,
     shadowColor: '#000',
@@ -380,13 +407,21 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  googleIconCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
   googleGLogo: {
     color: '#4285F4',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '900',
   },
   googleBtnText: {
-    color: '#1F2937',
+    color: '#1E293B',
     fontSize: 14,
     fontWeight: '700',
   },
