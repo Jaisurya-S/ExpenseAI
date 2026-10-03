@@ -9,7 +9,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Budget, ExpenseCategory } from '../types';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import safeStorage from './safeStorage';
 
 const BUDGETS_COLLECTION = 'budgets';
 const CACHE_KEY = '@xpenseai_cached_budgets';
@@ -42,11 +42,11 @@ export const budgetService = {
             });
           });
 
-          await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(items));
+          await safeStorage.setItem(CACHE_KEY, JSON.stringify(items));
           onData(items);
         },
         async (err) => {
-          const cached = await AsyncStorage.getItem(CACHE_KEY);
+          const cached = await safeStorage.getItem(CACHE_KEY);
           if (cached) {
             try {
               const parsed: Budget[] = JSON.parse(cached);
@@ -86,7 +86,7 @@ export const budgetService = {
       );
     } catch (err) {
       console.warn('upsertBudget fallback:', err);
-      const cached = await AsyncStorage.getItem(CACHE_KEY);
+      const cached = await safeStorage.getItem(CACHE_KEY);
       let items: Budget[] = cached ? JSON.parse(cached) : [];
       const existingIdx = items.findIndex((b) => b.category === category);
       if (existingIdx >= 0) {
@@ -100,7 +100,7 @@ export const budgetService = {
           updatedAt: new Date().toISOString(),
         });
       }
-      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(items));
+      await safeStorage.setItem(CACHE_KEY, JSON.stringify(items));
     }
   },
 
@@ -110,11 +110,11 @@ export const budgetService = {
       await deleteDoc(docRef);
     } catch (err) {
       console.warn('deleteBudget fallback:', err);
-      const cached = await AsyncStorage.getItem(CACHE_KEY);
+      const cached = await safeStorage.getItem(CACHE_KEY);
       if (cached) {
         let items: Budget[] = JSON.parse(cached);
         items = items.filter((b) => b.id !== budgetId);
-        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(items));
+        await safeStorage.setItem(CACHE_KEY, JSON.stringify(items));
       }
     }
   },

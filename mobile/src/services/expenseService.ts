@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db, crashlytics, auth } from './firebase';
 import { Expense } from '../types';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import safeStorage from './safeStorage';
 
 const EXPENSES_COLLECTION = 'expenses';
 const CACHE_KEY = '@xpenseai_cached_expenses';
@@ -59,12 +59,12 @@ export const expenseService = {
           });
 
           // Cache locally
-          await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(items));
+          await safeStorage.setItem(CACHE_KEY, JSON.stringify(items));
           onData(items);
         },
         async (firestoreError) => {
           // Load local cache or empty
-          const cached = await AsyncStorage.getItem(CACHE_KEY);
+          const cached = await safeStorage.getItem(CACHE_KEY);
           if (cached) {
             try {
               const parsed: Expense[] = JSON.parse(cached);
@@ -103,7 +103,7 @@ export const expenseService = {
     }
 
     try {
-      const cached = await AsyncStorage.getItem(CACHE_KEY);
+      const cached = await safeStorage.getItem(CACHE_KEY);
       const items: Expense[] = cached ? JSON.parse(cached) : [];
       const newExp: Expense = {
         ...expense,
@@ -112,7 +112,7 @@ export const expenseService = {
       };
       const filtered = items.filter((e) => e.id !== finalId);
       filtered.unshift(newExp);
-      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(filtered));
+      await safeStorage.setItem(CACHE_KEY, JSON.stringify(filtered));
     } catch (cacheErr) {
       console.warn('AsyncStorage cache write error:', cacheErr);
     }
@@ -135,11 +135,11 @@ export const expenseService = {
     }
 
     try {
-      const cached = await AsyncStorage.getItem(CACHE_KEY);
+      const cached = await safeStorage.getItem(CACHE_KEY);
       if (cached) {
         let items: Expense[] = JSON.parse(cached);
         items = items.map((e) => (e.id === id ? { ...e, ...updates } : e));
-        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(items));
+        await safeStorage.setItem(CACHE_KEY, JSON.stringify(items));
       }
     } catch (cacheErr) {
       console.warn('AsyncStorage cache update error:', cacheErr);
@@ -158,11 +158,11 @@ export const expenseService = {
     }
 
     try {
-      const cached = await AsyncStorage.getItem(CACHE_KEY);
+      const cached = await safeStorage.getItem(CACHE_KEY);
       if (cached) {
         let items: Expense[] = JSON.parse(cached);
         items = items.filter((e) => e.id !== id);
-        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(items));
+        await safeStorage.setItem(CACHE_KEY, JSON.stringify(items));
       }
     } catch (cacheErr) {
       console.warn('AsyncStorage cache delete error:', cacheErr);

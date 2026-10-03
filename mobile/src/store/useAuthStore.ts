@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { UserProfile } from '../types';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import safeStorage from '../services/safeStorage';
 import { Platform } from 'react-native';
 import { auth } from '../services/firebase';
 import {
@@ -51,13 +51,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   initAuth: () => {
     // Load local stored preferences
-    AsyncStorage.getItem('@xpenseai_user_profile').then((data) => {
+    safeStorage.getItem('@xpenseai_user_profile').then((data) => {
       if (data) {
         set({ profile: { ...DEFAULT_PROFILE, ...JSON.parse(data) } });
       }
     });
 
-    AsyncStorage.getItem('@xpenseai_theme_mode').then((mode) => {
+    safeStorage.getItem('@xpenseai_theme_mode').then((mode) => {
       if (mode) {
         set({ themeMode: mode as 'dark' | 'light' | 'system' });
       }
@@ -109,24 +109,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setCurrency: async (currency: string) => {
     const updated = { ...get().profile, currency };
     set({ profile: updated });
-    await AsyncStorage.setItem('@xpenseai_user_profile', JSON.stringify(updated));
+    await safeStorage.setItem('@xpenseai_user_profile', JSON.stringify(updated));
   },
 
   setThemeMode: async (mode: 'dark' | 'light' | 'system') => {
     set({ themeMode: mode });
-    await AsyncStorage.setItem('@xpenseai_theme_mode', mode);
+    await safeStorage.setItem('@xpenseai_theme_mode', mode);
   },
 
   toggleNotifications: async () => {
     const updated = { ...get().profile, notificationsEnabled: !get().profile.notificationsEnabled };
     set({ profile: updated });
-    await AsyncStorage.setItem('@xpenseai_user_profile', JSON.stringify(updated));
+    await safeStorage.setItem('@xpenseai_user_profile', JSON.stringify(updated));
   },
 
   toggleBiometrics: async () => {
     const updated = { ...get().profile, biometricsEnabled: !get().profile.biometricsEnabled };
     set({ profile: updated });
-    await AsyncStorage.setItem('@xpenseai_user_profile', JSON.stringify(updated));
+    await safeStorage.setItem('@xpenseai_user_profile', JSON.stringify(updated));
   },
 
   loginDemoUser: async () => {
@@ -160,7 +160,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       profile: demoProfile,
       isLoading: false,
     });
-    await AsyncStorage.setItem('@xpenseai_user_profile', JSON.stringify(demoProfile));
+    await safeStorage.setItem('@xpenseai_user_profile', JSON.stringify(demoProfile));
   },
 
   loginWithEmail: async (email: string, pass: string) => {
@@ -190,7 +190,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           profile: localProfile,
           isLoading: false,
         });
-        await AsyncStorage.setItem('@xpenseai_user_profile', JSON.stringify(localProfile));
+        await safeStorage.setItem('@xpenseai_user_profile', JSON.stringify(localProfile));
         return;
       }
       set({ isLoading: false });
@@ -218,7 +218,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isLoading: false,
           profile: googleProfile,
         });
-        await AsyncStorage.setItem('@xpenseai_user_profile', JSON.stringify(googleProfile));
+        await safeStorage.setItem('@xpenseai_user_profile', JSON.stringify(googleProfile));
       } else {
         // Native Mobile: Attempt Firebase Anonymous or establish Google User session
         let firebaseUser: any = null;
@@ -251,7 +251,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           profile: googleProfile,
           isLoading: false,
         });
-        await AsyncStorage.setItem('@xpenseai_user_profile', JSON.stringify(googleProfile));
+        await safeStorage.setItem('@xpenseai_user_profile', JSON.stringify(googleProfile));
       }
     } catch (err: any) {
       // In case of popup error or restriction on web, fallback to seamless Google profile
@@ -275,7 +275,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         profile: fallbackProfile,
         isLoading: false,
       });
-      await AsyncStorage.setItem('@xpenseai_user_profile', JSON.stringify(fallbackProfile));
+      await safeStorage.setItem('@xpenseai_user_profile', JSON.stringify(fallbackProfile));
     }
   },
 
@@ -294,7 +294,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
         profile: newProfile,
       });
-      await AsyncStorage.setItem('@xpenseai_user_profile', JSON.stringify(newProfile));
+      await safeStorage.setItem('@xpenseai_user_profile', JSON.stringify(newProfile));
     } catch (err: any) {
       if (
         err?.code === 'auth/admin-restricted-operation' ||
@@ -317,7 +317,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           profile: localProfile,
           isLoading: false,
         });
-        await AsyncStorage.setItem('@xpenseai_user_profile', JSON.stringify(localProfile));
+        await safeStorage.setItem('@xpenseai_user_profile', JSON.stringify(localProfile));
         return;
       }
       set({ isLoading: false });
