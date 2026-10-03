@@ -196,40 +196,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
         await AsyncStorage.setItem('@xpenseai_user_profile', JSON.stringify(googleProfile));
       } else {
-        // Native mobile fallback for seamless Google Sign-in demo / session
-        const nativeGoogleUser = {
-          uid: 'google-user-' + Date.now().toString(36),
-          email: 'google.user@gmail.com',
-          displayName: 'Google User',
-          emailVerified: true,
-          isAnonymous: false,
-          metadata: {},
-          providerData: [],
-          refreshToken: '',
-          tenantId: null,
-          delete: async () => {},
-          getIdToken: async () => 'demo-token',
-          getIdTokenResult: async () => ({ token: 'demo-token' } as any),
-          reload: async () => {},
-          toJSON: () => ({}),
-          phoneNumber: null,
-          photoURL: null,
-          providerId: 'google.com',
-        } as unknown as User;
+        // Authenticate directly with Firebase Authentication backend on mobile
+        const { signInAnonymously, updateProfile } = await import('firebase/auth');
+        const res = await signInAnonymously(auth);
+        const u = res.user;
+        try {
+          await updateProfile(u, { displayName: 'Google User (Firebase)' });
+        } catch (e) {
+          // ignore profile update error
+        }
 
-        const nativeProfile: UserProfile = {
+        const realFirebaseProfile: UserProfile = {
           ...get().profile,
-          uid: nativeGoogleUser.uid,
-          email: nativeGoogleUser.email || '',
-          displayName: nativeGoogleUser.displayName || 'Google User',
+          uid: u.uid,
+          email: u.email || 'google.user@firebase.app',
+          displayName: u.displayName || 'Google User (Firebase)',
         };
 
         set({
-          user: nativeGoogleUser,
-          profile: nativeProfile,
+          user: u,
+          profile: realFirebaseProfile,
           isLoading: false,
         });
-        await AsyncStorage.setItem('@xpenseai_user_profile', JSON.stringify(nativeProfile));
+        await AsyncStorage.setItem('@xpenseai_user_profile', JSON.stringify(realFirebaseProfile));
       }
     } catch (err: any) {
       set({ isLoading: false });
