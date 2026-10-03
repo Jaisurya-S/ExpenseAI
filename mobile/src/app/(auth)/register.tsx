@@ -42,6 +42,9 @@ export default function RegisterScreen() {
     if (code === 'auth/invalid-email') {
       return 'Please enter a valid email address format.';
     }
+    if (code === 'auth/admin-restricted-operation' || code === 'auth/operation-not-allowed') {
+      return 'Email registration is restricted in Firebase Console. Please enable Email/Password provider in Firebase Console.';
+    }
     return err.message || 'Registration failed.';
   };
 

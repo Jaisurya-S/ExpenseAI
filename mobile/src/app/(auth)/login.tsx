@@ -40,8 +40,8 @@ export default function LoginScreen() {
     if (code === 'auth/network-request-failed') {
       return 'Network error. Please check your internet connection.';
     }
-    if (code === 'auth/too-many-requests') {
-      return 'Access temporarily disabled due to many failed attempts. Try again later.';
+    if (code === 'auth/admin-restricted-operation' || code === 'auth/operation-not-allowed') {
+      return 'Authentication method is restricted in Firebase Console. Please use Instant Demo Access or enable this provider in Firebase Console.';
     }
     return err.message || 'Login failed. Please check credentials.';
   };
