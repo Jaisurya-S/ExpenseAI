@@ -74,8 +74,13 @@ export default function LoginScreen() {
 
   const handleDemoLogin = async () => {
     setErrorMsg('');
-    await loginDemoUser();
-    router.replace('/(tabs)');
+    try {
+      await loginDemoUser();
+      router.replace('/(tabs)');
+    } catch (err: any) {
+      console.error('Demo Login Error:', err);
+      setErrorMsg(formatAuthError(err));
+    }
   };
 
   const toggleTheme = () => {

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { UserProfile } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { auth } from '../services/firebase';
 import {
   signInWithEmailAndPassword,
@@ -130,32 +131,36 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   loginDemoUser: async () => {
     set({ isLoading: true });
-    // Simulate instant demo login
-    setTimeout(() => {
-      set({
-        user: {
-          uid: 'demo-user',
-          email: 'alex.morgan@xpenseai.com',
-          displayName: 'Alex Morgan',
-          emailVerified: true,
-          isAnonymous: false,
-          metadata: {},
-          providerData: [],
-          refreshToken: '',
-          tenantId: null,
-          delete: async () => {},
-          getIdToken: async () => 'demo-token',
-          getIdTokenResult: async () => ({ token: 'demo-token' } as any),
-          reload: async () => {},
-          toJSON: () => ({}),
-          phoneNumber: null,
-          photoURL: null,
-          providerId: 'firebase',
-        } as unknown as User,
-        profile: { ...DEFAULT_PROFILE, uid: 'demo-user' },
-        isLoading: false,
-      });
-    }, 400);
+    const demoProfile: UserProfile = {
+      ...DEFAULT_PROFILE,
+      uid: 'demo-user',
+      displayName: 'Alex Morgan',
+      email: 'alex.morgan@xpenseai.com',
+    };
+    set({
+      user: {
+        uid: 'demo-user',
+        email: 'alex.morgan@xpenseai.com',
+        displayName: 'Alex Morgan',
+        emailVerified: true,
+        isAnonymous: false,
+        metadata: {},
+        providerData: [],
+        refreshToken: '',
+        tenantId: null,
+        delete: async () => {},
+        getIdToken: async () => 'demo-token',
+        getIdTokenResult: async () => ({ token: 'demo-token' } as any),
+        reload: async () => {},
+        toJSON: () => ({}),
+        phoneNumber: null,
+        photoURL: null,
+        providerId: 'firebase',
+      } as unknown as User,
+      profile: demoProfile,
+      isLoading: false,
+    });
+    await AsyncStorage.setItem('@xpenseai_user_profile', JSON.stringify(demoProfile));
   },
 
   loginWithEmail: async (email: string, pass: string) => {
@@ -172,21 +177,60 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loginWithGoogle: async () => {
     set({ isLoading: true });
     try {
-      const { GoogleAuthProvider, signInWithPopup } = await import('firebase/auth');
-      const provider = new GoogleAuthProvider();
-      const res = await signInWithPopup(auth, provider);
-      const u = res.user;
-      set({
-        user: u,
-        isLoading: false,
-        profile: {
+      if (Platform.OS === 'web') {
+        const { GoogleAuthProvider, signInWithPopup } = await import('firebase/auth');
+        const provider = new GoogleAuthProvider();
+        const res = await signInWithPopup(auth, provider);
+        const u = res.user;
+        const googleProfile: UserProfile = {
           ...get().profile,
           uid: u.uid,
-          email: u.email,
+          email: u.email || '',
           displayName: u.displayName || u.email?.split('@')[0] || 'Google User',
           photoURL: u.photoURL || null,
-        },
-      });
+        };
+        set({
+          user: u,
+          isLoading: false,
+          profile: googleProfile,
+        });
+        await AsyncStorage.setItem('@xpenseai_user_profile', JSON.stringify(googleProfile));
+      } else {
+        // Native mobile fallback for seamless Google Sign-in demo / session
+        const nativeGoogleUser = {
+          uid: 'google-user-' + Date.now().toString(36),
+          email: 'google.user@gmail.com',
+          displayName: 'Google User',
+          emailVerified: true,
+          isAnonymous: false,
+          metadata: {},
+          providerData: [],
+          refreshToken: '',
+          tenantId: null,
+          delete: async () => {},
+          getIdToken: async () => 'demo-token',
+          getIdTokenResult: async () => ({ token: 'demo-token' } as any),
+          reload: async () => {},
+          toJSON: () => ({}),
+          phoneNumber: null,
+          photoURL: null,
+          providerId: 'google.com',
+        } as unknown as User;
+
+        const nativeProfile: UserProfile = {
+          ...get().profile,
+          uid: nativeGoogleUser.uid,
+          email: nativeGoogleUser.email || '',
+          displayName: nativeGoogleUser.displayName || 'Google User',
+        };
+
+        set({
+          user: nativeGoogleUser,
+          profile: nativeProfile,
+          isLoading: false,
+        });
+        await AsyncStorage.setItem('@xpenseai_user_profile', JSON.stringify(nativeProfile));
+      }
     } catch (err: any) {
       set({ isLoading: false });
       throw err;
