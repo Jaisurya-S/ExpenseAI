@@ -89,6 +89,8 @@ import {
   Tag,
   Eye,
   EyeOff,
+  MessageCircle,
+  MessageSquare,
 } from 'lucide-react-native';
 import { iconWithClassName } from '../../lib/icons/iconWithClassName';
 
@@ -183,6 +185,8 @@ iconWithClassName(Share2);
 iconWithClassName(Tag);
 iconWithClassName(Eye);
 iconWithClassName(EyeOff);
+iconWithClassName(MessageCircle);
+iconWithClassName(MessageSquare);
 
 export {
   Plus,
@@ -275,6 +279,8 @@ export {
   Tag,
   Eye,
   EyeOff,
+  MessageCircle,
+  MessageSquare,
 };
 
 export const Icons = {
@@ -368,4 +374,6 @@ export const Icons = {
   Tag,
   Eye,
   EyeOff,
+  MessageCircle,
+  MessageSquare,
 };

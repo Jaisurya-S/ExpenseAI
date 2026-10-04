@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
+  TextInput,
   Alert,
   SafeAreaView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -26,7 +28,17 @@ import {
   Sun,
   Moon,
   Smartphone,
+  MessageSquare,
+  MessageCircle,
+  Clock,
+  Send,
+  CheckCircle2,
 } from '../../components/ui/icons';
+import {
+  generateDailyWhatsAppReport,
+  openWhatsAppReport,
+  formatWhatsAppNumber,
+} from '../../services/whatsappService';
 
 const CURRENCIES = ['₹', '$', '€', '£', '¥'];
 const THEME_OPTIONS: { id: 'light' | 'dark' | 'system'; label: string; icon: any }[] = [
@@ -35,12 +47,121 @@ const THEME_OPTIONS: { id: 'light' | 'dark' | 'system'; label: string; icon: any
   { id: 'system', label: 'System', icon: Smartphone },
 ];
 
+const TIME_PRESETS = [
+  { id: '21:00', label: '9:00 PM' },
+  { id: '21:30', label: '9:30 PM' },
+  { id: '22:00', label: '10:00 PM' },
+  { id: '22:30', label: '10:30 PM' },
+];
+
 export default function ProfileScreen() {
   const router = useRouter();
-  const { profile, user, logout, setCurrency, toggleNotifications, toggleBiometrics, themeMode, setThemeMode } =
-    useAuthStore();
-  const { expenses } = useExpenseStore();
-  const { colors, isDark, systemScheme } = useAppTheme();
+  const {
+    profile,
+    user,
+    logout,
+    setCurrency,
+    toggleNotifications,
+    toggleBiometrics,
+    themeMode,
+    setThemeMode,
+    updateWhatsAppSettings,
+  } = useAuthStore();
+  const { expenses, incomes, budgets } = useExpenseStore();
+  const { colors, isDark } = useAppTheme();
+
+  const [whatsappNumber, setWhatsappNumber] = useState(profile.whatsappNumber || '');
+  const [whatsappEnabled, setWhatsappEnabled] = useState(profile.whatsappDailyReport ?? false);
+  const [whatsappTime, setWhatsappTime] = useState(profile.whatsappReportTime || '21:30');
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+
+  // Compute today's expenses & incomes
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayExpenses = expenses.filter((e) => e.date === todayStr);
+  const todayIncomes = incomes.filter((i) => i.date === todayStr);
+
+  // Month total
+  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+    .toISOString()
+    .split('T')[0];
+  const monthTotalExpenses = expenses
+    .filter((e) => e.date >= startOfMonth)
+    .reduce((sum, e) => sum + (e.amount || 0), 0);
+  const totalMonthlyBudget = budgets.reduce((sum, b) => sum + (b.amount || 0), 0) || profile.totalBudgetLimit || 0;
+
+  const handleToggleWhatsApp = async (val: boolean) => {
+    setWhatsappEnabled(val);
+    await updateWhatsAppSettings({
+      whatsappDailyReport: val,
+      whatsappNumber: whatsappNumber.trim(),
+      whatsappReportTime: whatsappTime,
+    });
+  };
+
+  const handleSaveWhatsAppNumber = async (text: string) => {
+    setWhatsappNumber(text);
+    await updateWhatsAppSettings({
+      whatsappNumber: text.trim(),
+      whatsappDailyReport: whatsappEnabled,
+      whatsappReportTime: whatsappTime,
+    });
+  };
+
+  const handleSelectWhatsAppTime = async (timeId: string) => {
+    setWhatsappTime(timeId);
+    await updateWhatsAppSettings({
+      whatsappReportTime: timeId,
+      whatsappDailyReport: whatsappEnabled,
+      whatsappNumber: whatsappNumber.trim(),
+    });
+  };
+
+  const handleSendTestWhatsApp = async () => {
+    const cleanPhone = formatWhatsAppNumber(whatsappNumber);
+    if (!cleanPhone && !whatsappNumber) {
+      if (Platform.OS === 'web') {
+        window.alert('Please enter your WhatsApp mobile number first.');
+      } else {
+        Alert.alert('Phone Number Needed', 'Please enter your WhatsApp mobile number.');
+      }
+      return;
+    }
+
+    setIsSendingWhatsApp(true);
+    try {
+      const reportText = generateDailyWhatsAppReport({
+        dateStr: todayStr,
+        currency: profile.currency || '₹',
+        todayExpenses,
+        todayIncomes,
+        monthTotalExpenses,
+        monthlyBudget: totalMonthlyBudget,
+        userName: profile.displayName || user?.displayName || 'User',
+      });
+
+      const opened = await openWhatsAppReport(whatsappNumber, reportText);
+      if (opened) {
+        if (Platform.OS === 'web') {
+          // Alert confirmed
+        }
+      }
+    } catch (err) {
+      console.error('WhatsApp dispatch error:', err);
+    } finally {
+      setIsSendingWhatsApp(false);
+    }
+  };
+
+  const previewReportText = generateDailyWhatsAppReport({
+    dateStr: todayStr,
+    currency: profile.currency || '₹',
+    todayExpenses,
+    todayIncomes,
+    monthTotalExpenses,
+    monthlyBudget: totalMonthlyBudget,
+    userName: profile.displayName || user?.displayName || 'User',
+  });
 
   const handleExportCSV = () => {
     if (expenses.length === 0) {
@@ -70,10 +191,7 @@ export default function ProfileScreen() {
       link.click();
       document.body.removeChild(link);
     } else {
-      Alert.alert(
-        'Export Successful',
-        `Exported ${expenses.length} expenses to CSV format.`
-      );
+      Alert.alert('Export Successful', `Exported ${expenses.length} expenses to CSV format.`);
     }
   };
 
@@ -113,7 +231,7 @@ export default function ProfileScreen() {
         <View style={styles.header}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Settings & Account</Text>
           <Text style={[styles.headerSub, { color: colors.textMuted }]}>
-            Preferences, appearance and account controls
+            Preferences, WhatsApp alerts, and account controls
           </Text>
         </View>
 
@@ -143,14 +261,192 @@ export default function ProfileScreen() {
               </Text>
             </View>
             <View style={styles.profileInfo}>
-              <Text style={[styles.profileName, { color: colors.text }]}>
-                {displayName}
-              </Text>
+              <Text style={[styles.profileName, { color: colors.text }]}>{displayName}</Text>
               <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>
                 {profile.email || user?.email || 'Guest Account'}
               </Text>
             </View>
           </View>
+        </View>
+
+        {/* WhatsApp Daily Expense Summary Card */}
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.card,
+              borderColor: whatsappEnabled ? (isDark ? '#059669' : '#10B981') : colors.cardBorder,
+              shadowColor: colors.cardShadow,
+            },
+          ]}
+        >
+          <View style={styles.whatsappHeaderRow}>
+            <View style={styles.whatsappHeaderLeft}>
+              <View
+                style={[
+                  styles.whatsappIconBox,
+                  { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#DCFCE7' },
+                ]}
+              >
+                <MessageCircle size={18} color="#10B981" />
+              </View>
+              <View>
+                <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 2 }]}>
+                  WhatsApp Daily Summary
+                </Text>
+                <Text style={[styles.settingSub, { color: colors.textMuted }]}>
+                  Automated daily spending digest
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={whatsappEnabled}
+              onValueChange={handleToggleWhatsApp}
+              trackColor={{ false: colors.cardBorder, true: '#10B981' }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          {whatsappEnabled && (
+            <View style={styles.whatsappBody}>
+              <View style={styles.whatsappDivider} />
+
+              {/* Phone Number Input */}
+              <View style={styles.whatsappFieldGroup}>
+                <Text style={[styles.whatsappFieldLabel, { color: colors.textSecondary }]}>
+                  YOUR WHATSAPP NUMBER
+                </Text>
+                <View
+                  style={[
+                    styles.whatsappInputBox,
+                    {
+                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                      borderColor: colors.cardBorder,
+                    },
+                  ]}
+                >
+                  <Smartphone size={15} color={colors.textMuted} style={{ marginRight: 8 }} />
+                  <TextInput
+                    style={[
+                      styles.whatsappTextInput,
+                      {
+                        color: colors.text,
+                        ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
+                      },
+                    ]}
+                    placeholder="e.g. +91 98765 43210"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="phone-pad"
+                    value={whatsappNumber}
+                    onChangeText={handleSaveWhatsAppNumber}
+                  />
+                  {whatsappNumber.length >= 10 && (
+                    <CheckCircle2 size={16} color="#10B981" />
+                  )}
+                </View>
+              </View>
+
+              {/* Schedule Time Selector */}
+              <View style={styles.whatsappFieldGroup}>
+                <Text style={[styles.whatsappFieldLabel, { color: colors.textSecondary }]}>
+                  DELIVERY TIME (EVERY EVENING)
+                </Text>
+                <View style={styles.timePillsRow}>
+                  {TIME_PRESETS.map((t) => {
+                    const isSelected = whatsappTime === t.id;
+                    return (
+                      <TouchableOpacity
+                        key={t.id}
+                        activeOpacity={0.7}
+                        onPress={() => handleSelectWhatsAppTime(t.id)}
+                        style={[
+                          styles.timePill,
+                          {
+                            backgroundColor: isSelected
+                              ? '#10B981'
+                              : isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                            borderColor: isSelected ? '#10B981' : colors.cardBorder,
+                          },
+                        ]}
+                      >
+                        <Clock
+                          size={11}
+                          color={isSelected ? '#FFFFFF' : colors.textMuted}
+                          style={{ marginRight: 4 }}
+                        />
+                        <Text
+                          style={[
+                            styles.timePillText,
+                            {
+                              color: isSelected ? '#FFFFFF' : colors.text,
+                              fontWeight: isSelected ? '700' : '500',
+                            },
+                          ]}
+                        >
+                          {t.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Action Buttons */}
+              <View style={styles.whatsappActionsRow}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={handleSendTestWhatsApp}
+                  disabled={isSendingWhatsApp}
+                  style={styles.sendWhatsAppBtn}
+                >
+                  {isSendingWhatsApp ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <>
+                      <Send size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.sendWhatsAppBtnText}>Send Today's Digest Now</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setShowPreview(!showPreview)}
+                  style={[
+                    styles.previewToggleBtn,
+                    {
+                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+                      borderColor: colors.cardBorder,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.previewToggleBtnText, { color: colors.textSecondary }]}>
+                    {showPreview ? 'Hide Preview' : '👁️ Preview'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Message Live Preview Box */}
+              {showPreview && (
+                <View
+                  style={[
+                    styles.previewBox,
+                    {
+                      backgroundColor: isDark ? 'rgba(0, 0, 0, 0.25)' : 'rgba(0, 0, 0, 0.02)',
+                      borderColor: colors.cardBorder,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.previewHeading, { color: colors.textMuted }]}>
+                    WHATSAPP MESSAGE PREVIEW:
+                  </Text>
+                  <Text style={[styles.previewContent, { color: colors.text }]}>
+                    {previewReportText}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         {/* Appearance / Theme */}
@@ -264,13 +560,13 @@ export default function ProfileScreen() {
             },
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Preferences</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>General Preferences</Text>
 
           <View style={[styles.settingRow, { borderBottomColor: colors.cardBorder, borderBottomWidth: 1 }]}>
             <View style={styles.settingTextCol}>
               <Text style={[styles.settingLabel, { color: colors.text }]}>Budget Alerts</Text>
               <Text style={[styles.settingSub, { color: colors.textMuted }]}>
-                Notify when reaching threshold
+                Notify when reaching spending threshold
               </Text>
             </View>
             <Switch
@@ -408,6 +704,118 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.2,
     marginBottom: 12,
+  },
+  whatsappHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  whatsappHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  whatsappIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  whatsappBody: {
+    marginTop: 12,
+  },
+  whatsappDivider: {
+    height: 1,
+    backgroundColor: 'rgba(150, 150, 150, 0.15)',
+    marginBottom: 14,
+  },
+  whatsappFieldGroup: {
+    marginBottom: 12,
+  },
+  whatsappFieldLabel: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    marginBottom: 6,
+  },
+  whatsappInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    height: 42,
+  },
+  whatsappTextInput: {
+    flex: 1,
+    fontSize: 13,
+    height: '100%',
+  },
+  timePillsRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  timePill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  timePillText: {
+    fontSize: 11.5,
+  },
+  whatsappActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  sendWhatsAppBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10B981',
+    borderRadius: 10,
+    height: 40,
+  },
+  sendWhatsAppBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  previewToggleBtn: {
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 40,
+  },
+  previewToggleBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  previewBox: {
+    marginTop: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 12,
+  },
+  previewHeading: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    marginBottom: 6,
+  },
+  previewContent: {
+    fontSize: 11.5,
+    lineHeight: 17,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   segmentedControl: {
     flexDirection: 'row',

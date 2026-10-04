@@ -21,6 +21,11 @@ interface AuthState {
   setThemeMode: (mode: 'dark' | 'light' | 'system') => Promise<void>;
   toggleNotifications: () => Promise<void>;
   toggleBiometrics: () => Promise<void>;
+  updateWhatsAppSettings: (settings: {
+    whatsappNumber?: string;
+    whatsappDailyReport?: boolean;
+    whatsappReportTime?: string;
+  }) => Promise<void>;
   loginDemoUser: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
@@ -127,6 +132,37 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const updated = { ...get().profile, biometricsEnabled: !get().profile.biometricsEnabled };
     set({ profile: updated });
     await safeStorage.setItem('@xpenseai_user_profile', JSON.stringify(updated));
+  },
+
+  updateWhatsAppSettings: async (settings: {
+    whatsappNumber?: string;
+    whatsappDailyReport?: boolean;
+    whatsappReportTime?: string;
+  }) => {
+    const updated = { ...get().profile, ...settings };
+    set({ profile: updated });
+    await safeStorage.setItem('@xpenseai_user_profile', JSON.stringify(updated));
+
+    // Also sync to Firestore if user exists
+    try {
+      const uid = get().user?.uid || get().profile.uid;
+      if (uid) {
+        const { doc, setDoc } = await import('firebase/firestore');
+        const { db } = await import('../services/firebase');
+        await setDoc(
+          doc(db, 'users', uid),
+          {
+            whatsappNumber: updated.whatsappNumber || '',
+            whatsappDailyReport: updated.whatsappDailyReport ?? false,
+            whatsappReportTime: updated.whatsappReportTime || '21:30',
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+      }
+    } catch (e) {
+      console.warn('Could not sync WhatsApp settings to Firestore:', e);
+    }
   },
 
   loginDemoUser: async () => {
