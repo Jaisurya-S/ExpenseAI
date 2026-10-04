@@ -215,7 +215,7 @@ exports.onExpenseCreated = functions.firestore
     // Calculate total spent in current month for this category
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-    
+
     const expensesSnap = await db.collection("expenses")
       .where("userId", "==", userId)
       .where("category", "==", category)
@@ -295,7 +295,7 @@ async function sendWhatsAppCloudApiMessage(toPhone, messageText) {
 function buildDailyExpenseReportText(userName, todayExpenses, todayIncomes, currency = "₹", monthTotal = 0, budgetLimit = 0) {
   const totalSpent = todayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
   const totalIncome = todayIncomes.reduce((sum, i) => sum + (i.amount || 0), 0);
-  const nowStr = new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  const nowStr = new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" });
 
   const catEmojis = {
     Food: "🍔",
@@ -313,44 +313,71 @@ function buildDailyExpenseReportText(userName, todayExpenses, todayIncomes, curr
   const categoryMap = {};
   for (const exp of todayExpenses) {
     const cat = exp.category || "Other";
-    if (!categoryMap[cat]) categoryMap[cat] = { total: 0, count: 0 };
+    if (!categoryMap[cat]) categoryMap[cat] = { total: 0, count: 0, items: [] };
     categoryMap[cat].total += (exp.amount || 0);
     categoryMap[cat].count += 1;
+    if (exp.description && !categoryMap[cat].items.includes(exp.description)) {
+      categoryMap[cat].items.push(exp.description);
+    }
+  }
+
+  let statusBadge = "🟢 *On Track*";
+  if (budgetLimit > 0) {
+    const dailyTarget = budgetLimit / 30;
+    if (totalSpent > dailyTarget * 1.5) {
+      statusBadge = "🔴 *High Spending Day*";
+    } else if (totalSpent > dailyTarget) {
+      statusBadge = "🟡 *Moderate Spending*";
+    }
   }
 
   const lines = [
-    `📊 *ExpenseAI Daily Summary*`,
-    `👤 *Hello ${userName || "User"}!*`,
-    `📅 *Date:* ${nowStr}`,
+    `━━━━━━━━━━━━━━━━━━━`,
+    `📊 *EXPENSE AI • DAILY DIGEST*`,
+    `━━━━━━━━━━━━━━━━━━━`,
+    `👤 *Hello ${userName ? userName.split(" ")[0] : "Friend"}!*`,
+    `📅 ${nowStr}`,
+    `⚡ Status: ${statusBadge}`,
     ``,
-    `💰 *Total Spent Today:* ${currency}${totalSpent.toLocaleString()}`,
-    `📝 *Transactions:* ${todayExpenses.length} expense${todayExpenses.length === 1 ? "" : "s"}`
+    `💰 *Total Spent Today:* *${currency}${totalSpent.toLocaleString()}*`,
+    `📝 *Transactions:* ${todayExpenses.length} record${todayExpenses.length === 1 ? "" : "s"}`
   ];
 
   if (totalIncome > 0) {
-    lines.push(`💵 *Income Received Today:* +${currency}${totalIncome.toLocaleString()}`);
+    lines.push(`💵 *Income Received:* +${currency}${totalIncome.toLocaleString()}`);
   }
 
   lines.push(``);
 
   if (todayExpenses.length === 0) {
-    lines.push(`🎉 *Zero expenses logged today!* Great discipline!`);
+    lines.push(`🎉 *Zero expenses logged today!* Excellent financial discipline.`);
   } else {
-    lines.push(`*Categorized Breakdown:*`);
+    lines.push(`📂 *Category Breakdown:*`);
     for (const [cat, info] of Object.entries(categoryMap)) {
       const emoji = catEmojis[cat] || "•";
-      lines.push(`${emoji} *${cat}:* ${currency}${info.total.toLocaleString()} (${info.count})`);
+      const sample = info.items.slice(0, 2).join(", ");
+      const descSnippet = sample ? ` _(${sample})_` : "";
+      const pct = totalSpent > 0 ? Math.round((info.total / totalSpent) * 100) : 0;
+      lines.push(`${emoji} *${cat}:* ${currency}${info.total.toLocaleString()} (${pct}%)${descSnippet}`);
     }
   }
 
   if (budgetLimit > 0) {
     lines.push(``);
-    const pct = Math.min(100, Math.round((monthTotal / budgetLimit) * 100));
-    lines.push(`📈 *Monthly Budget Progress:* ${currency}${monthTotal.toLocaleString()} / ${currency}${budgetLimit.toLocaleString()} (${pct}% used)`);
+    const budgetPct = Math.min(100, Math.round((monthTotal / budgetLimit) * 100));
+    const filledBars = Math.round((budgetPct / 100) * 10);
+    const bar = `[${"█".repeat(filledBars)}${"░".repeat(10 - filledBars)}] ${budgetPct}%`;
+    const remaining = Math.max(0, budgetLimit - monthTotal);
+    lines.push(`📈 *Monthly Budget Progress:*`);
+    lines.push(`${bar}`);
+    lines.push(`• Spent: ${currency}${monthTotal.toLocaleString()} / ${currency}${budgetLimit.toLocaleString()}`);
+    lines.push(`• Remaining: ${currency}${remaining.toLocaleString()}`);
   }
 
   lines.push(``);
-  lines.push(`_Sent automatically via ExpenseAI_ ✨`);
+  lines.push(`💡 *AI Smart Tip:* Consistent tracking is the cornerstone of wealth building!`);
+  lines.push(`━━━━━━━━━━━━━━━━━━━`);
+  lines.push(`_ExpenseAI — Your Smart Personal CFO_ ✨`);
 
   return lines.join("\n");
 }

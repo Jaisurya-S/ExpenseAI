@@ -12,6 +12,17 @@ export interface DailyReportData {
 }
 
 /**
+ * Generate a visual ASCII progress bar for WhatsApp messages
+ */
+function renderProgressBar(percentage: number): string {
+  const totalBars = 10;
+  const clamped = Math.max(0, Math.min(100, percentage));
+  const filledBars = Math.round((clamped / 100) * totalBars);
+  const emptyBars = totalBars - filledBars;
+  return `[${'█'.repeat(filledBars)}${'░'.repeat(emptyBars)}] ${clamped}%`;
+}
+
+/**
  * Generate formatted WhatsApp Markdown message for Daily Expense Summary
  */
 export function generateDailyWhatsAppReport(data: DailyReportData): string {
@@ -22,7 +33,7 @@ export function generateDailyWhatsAppReport(data: DailyReportData): string {
     todayIncomes = [],
     monthTotalExpenses = 0,
     monthlyBudget = 0,
-    userName = 'Valued User',
+    userName = 'Friend',
   } = data;
 
   const totalSpent = todayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
@@ -47,7 +58,7 @@ export function generateDailyWhatsAppReport(data: DailyReportData): string {
   try {
     const d = new Date(dateStr + 'T12:00:00');
     formattedDate = d.toLocaleDateString('en-US', {
-      weekday: 'short',
+      weekday: 'long',
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -70,43 +81,85 @@ export function generateDailyWhatsAppReport(data: DailyReportData): string {
     Other: '💳',
   };
 
+  // Determine Daily Spending Status
+  let statusBadge = '🟢 *On Track*';
+  if (monthlyBudget > 0) {
+    const dailyTarget = monthlyBudget / 30;
+    if (totalSpent > dailyTarget * 1.5) {
+      statusBadge = '🔴 *High Spending Day*';
+    } else if (totalSpent > dailyTarget) {
+      statusBadge = '🟡 *Moderate Spending*';
+    }
+  }
+
   const lines: string[] = [
-    `📊 *ExpenseAI Daily Summary*`,
+    `━━━━━━━━━━━━━━━━━━━`,
+    `📊 *EXPENSE AI • DAILY DIGEST*`,
+    `━━━━━━━━━━━━━━━━━━━`,
     `👤 *Hello ${userName.split(' ')[0]}!*`,
-    `📅 *Date:* ${formattedDate}`,
+    `📅 ${formattedDate}`,
+    `⚡ Status: ${statusBadge}`,
     ``,
-    `💰 *Total Spent Today:* ${currency}${totalSpent.toLocaleString()}`,
-    `📝 *Transactions:* ${todayExpenses.length} expense${todayExpenses.length === 1 ? '' : 's'}`,
+    `💰 *Total Spent Today:* *${currency}${totalSpent.toLocaleString()}*`,
+    `📝 *Transactions:* ${todayExpenses.length} record${todayExpenses.length === 1 ? '' : 's'}`,
   ];
 
   if (totalIncome > 0) {
-    lines.push(`💵 *Income Received Today:* +${currency}${totalIncome.toLocaleString()}`);
+    lines.push(`💵 *Income Received:* +${currency}${totalIncome.toLocaleString()}`);
   }
 
   lines.push(``);
 
   if (todayExpenses.length === 0) {
-    lines.push(`🎉 *Zero expenses logged today!* Great savings!`);
+    lines.push(`🎉 *Zero expenses logged today!* Excellent financial discipline.`);
   } else {
-    lines.push(`*Categorized Breakdown:*`);
+    lines.push(`📂 *Category Breakdown:*`);
     for (const [cat, info] of Object.entries(categoryMap)) {
       const icon = catEmojis[cat] || '•';
       const itemSample = info.items.slice(0, 2).join(', ');
       const descSnippet = itemSample ? ` _(${itemSample})_` : '';
-      lines.push(`${icon} *${cat}:* ${currency}${info.total.toLocaleString()} (${info.count})${descSnippet}`);
+      const pct = totalSpent > 0 ? Math.round((info.total / totalSpent) * 100) : 0;
+      lines.push(`${icon} *${cat}:* ${currency}${info.total.toLocaleString()} (${pct}%)${descSnippet}`);
     }
   }
 
   if (monthlyBudget > 0) {
     lines.push(``);
-    const pct = Math.min(100, Math.round((monthTotalExpenses / monthlyBudget) * 100));
-    lines.push(`📈 *Monthly Budget:* ${currency}${monthTotalExpenses.toLocaleString()} / ${currency}${monthlyBudget.toLocaleString()} (${pct}% used)`);
+    const budgetPct = Math.round((monthTotalExpenses / monthlyBudget) * 100);
+    const remaining = Math.max(0, monthlyBudget - monthTotalExpenses);
+    lines.push(`📈 *Monthly Budget Progress:*`);
+    lines.push(`${renderProgressBar(budgetPct)}`);
+    lines.push(`• Spent: ${currency}${monthTotalExpenses.toLocaleString()} / ${currency}${monthlyBudget.toLocaleString()}`);
+    lines.push(`• Remaining: ${currency}${remaining.toLocaleString()}`);
   }
 
   lines.push(``);
-  lines.push(`_Sent automatically via ExpenseAI_ ✨`);
+  lines.push(`💡 *AI Smart Tip:* ${getSmartTip(totalSpent, todayExpenses)}`);
+  lines.push(`━━━━━━━━━━━━━━━━━━━`);
+  lines.push(`_ExpenseAI — Your Smart Personal CFO_ ✨`);
 
   return lines.join('\n');
+}
+
+/**
+ * Generate a contextual financial tip based on today's logs
+ */
+function getSmartTip(totalSpent: number, expenses: Expense[]): string {
+  if (expenses.length === 0) {
+    return 'No spends recorded today. Keep this momentum going to maximize monthly savings!';
+  }
+  const foodSpend = expenses.filter(e => e.category === 'Food').reduce((s, e) => s + e.amount, 0);
+  if (foodSpend > totalSpent * 0.5 && foodSpend > 300) {
+    return 'Dining and food took over half of today\'s expenses. Consider meal prep to trim dining costs.';
+  }
+  const shoppingSpend = expenses.filter(e => e.category === 'Shopping').reduce((s, e) => s + e.amount, 0);
+  if (shoppingSpend > 500) {
+    return 'For discretionary shopping, try the 48-hour rule before purchasing non-essentials.';
+  }
+  if (totalSpent > 2000) {
+    return 'High spending day recorded. Review upcoming bills to balance out the remaining week.';
+  }
+  return 'Great job logging your daily expenses consistently. Consistent tracking boosts financial freedom!';
 }
 
 /**
@@ -116,7 +169,6 @@ export function formatWhatsAppNumber(phone: string): string {
   let cleaned = phone.replace(/[^0-9]/g, '');
   if (!cleaned) return '';
 
-  // If 10 digits (common for India / US), default to +91 (India) or keep as is
   if (cleaned.length === 10) {
     cleaned = '91' + cleaned;
   }
@@ -130,7 +182,7 @@ export async function openWhatsAppReport(phoneNumber: string, reportText: string
   try {
     const formattedPhone = formatWhatsAppNumber(phoneNumber);
     const encoded = encodeURIComponent(reportText);
-    
+
     let url = '';
     if (formattedPhone) {
       url = `https://wa.me/${formattedPhone}?text=${encoded}`;
