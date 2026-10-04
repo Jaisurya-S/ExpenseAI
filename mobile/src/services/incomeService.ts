@@ -91,9 +91,26 @@ export const incomeService = {
 
           // Retain any locally saved items that are not yet in Firestore
           const remoteIdSet = new Set(validRemoteItems.map((r) => r.id));
-          const unsyncedLocalItems = localItems.filter(
-            (local) => (local.userId === activeUserId || !local.userId) && !deletedIds.has(local.id) && (!remoteIdSet.has(local.id) || local.id.startsWith('inc-') || local.id.startsWith('local-'))
-          );
+          const unsyncedLocalItems = localItems.filter((local) => {
+            if (local.userId && local.userId !== activeUserId) return false;
+            if (deletedIds.has(local.id)) return false;
+            if (remoteIdSet.has(local.id)) return false;
+
+            // If it's a temporary item, check if there's already an identical remote item (same amount, source, date, description)
+            if (local.id.startsWith('inc-') || local.id.startsWith('local-')) {
+              const isDuplicateOfRemote = validRemoteItems.some(
+                (remote) =>
+                  Number(remote.amount) === Number(local.amount) &&
+                  remote.source === local.source &&
+                  remote.date === local.date &&
+                  (remote.description || '').trim() === (local.description || '').trim()
+              );
+              if (isDuplicateOfRemote) {
+                return false;
+              }
+            }
+            return true;
+          });
 
           // Merge: remote items + unsynced local items
           const mergedMap = new Map<string, Income>();
@@ -118,45 +135,6 @@ export const incomeService = {
           // Cache locally under user key
           await safeStorage.setItem(cacheKey, JSON.stringify(allItems));
           onData(allItems);
-
-          // Background auto-sync unsynced local incomes to Firestore
-          for (const unsynced of unsyncedLocalItems) {
-            if ((unsynced.id.startsWith('inc-') || unsynced.id.startsWith('local-')) && !syncingIncomeIds.has(unsynced.id)) {
-              syncingIncomeIds.add(unsynced.id);
-              (async () => {
-                try {
-                  const payload = sanitizeForFirestore({
-                    userId: unsynced.userId || activeUserId,
-                    amount: unsynced.amount,
-                    source: unsynced.source,
-                    description: unsynced.description,
-                    payer: unsynced.payer || '',
-                    date: unsynced.date,
-                    paymentMethod: unsynced.paymentMethod,
-                    receiptUrl: unsynced.receiptUrl || '',
-                    notes: unsynced.notes || '',
-                    tags: unsynced.tags || [],
-                    isOpeningBalance: Boolean(unsynced.isOpeningBalance),
-                    createdAt: serverTimestamp(),
-                  });
-                  const docRef = await addDoc(collection(db, INCOMES_COLLECTION), payload);
-                  
-                  // Update local cache with real firestore ID
-                  const latestCached = await safeStorage.getItem(cacheKey);
-                  if (latestCached) {
-                    let items: Income[] = JSON.parse(latestCached);
-                    items = items.map((i) => (i.id === unsynced.id ? { ...i, id: docRef.id } : i));
-                    await safeStorage.setItem(cacheKey, JSON.stringify(items));
-                    onData(items);
-                  }
-                } catch (syncErr) {
-                  console.warn('Background income sync error:', syncErr);
-                } finally {
-                  syncingIncomeIds.delete(unsynced.id);
-                }
-              })();
-            }
-          }
         },
         async (firestoreError) => {
           console.warn('Firestore income subscription fallback to local cache:', firestoreError);
@@ -189,15 +167,15 @@ export const incomeService = {
   },
 
   // Create new income record with immediate local persistence
-  createIncome: async (income: Omit<Income, 'id' | 'createdAt'>): Promise<string> => {
-    const tempId = 'inc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
+  createIncome: async (income: { id?: string; createdAt?: string } & Omit<Income, 'id' | 'createdAt'>): Promise<string> => {
+    const tempId = income.id || ('inc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7));
     const activeUserId = income.userId || 'demo-user';
     const cacheKey = getCacheKey(activeUserId);
 
     const newInc: Income = {
       ...income,
       id: tempId,
-      createdAt: new Date().toISOString(),
+      createdAt: income.createdAt || new Date().toISOString(),
     };
 
     // 1. Write to local cache immediately
@@ -215,11 +193,17 @@ export const incomeService = {
     // 2. Write to Firestore with sanitized payload
     try {
       const payload = sanitizeForFirestore({
-        ...income,
+        userId: activeUserId,
+        amount: Number(income.amount) || 0,
+        source: income.source,
+        description: income.description || '',
         payer: income.payer || '',
+        date: income.date,
+        paymentMethod: income.paymentMethod,
         receiptUrl: income.receiptUrl || '',
         notes: income.notes || '',
         tags: income.tags || [],
+        isOpeningBalance: Boolean(income.isOpeningBalance),
         createdAt: serverTimestamp(),
       });
 
@@ -233,8 +217,17 @@ export const incomeService = {
         if (cached) {
           let items: Income[] = JSON.parse(cached);
           items = items.map((i) => (i.id === tempId ? { ...i, id: finalId } : i));
-          await safeStorage.setItem(cacheKey, JSON.stringify(items));
-          await safeStorage.setItem(UNIVERSAL_KEY, JSON.stringify(items));
+          // Deduplicate if finalId exists already
+          const seen = new Set<string>();
+          const deduped: Income[] = [];
+          for (const item of items) {
+            if (!seen.has(item.id)) {
+              seen.add(item.id);
+              deduped.push(item);
+            }
+          }
+          await safeStorage.setItem(cacheKey, JSON.stringify(deduped));
+          await safeStorage.setItem(UNIVERSAL_KEY, JSON.stringify(deduped));
         }
       } catch {}
 

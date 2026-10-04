@@ -229,12 +229,33 @@ export const useExpenseStore = create<ExpenseStoreState>()(
           ? incomingExpenses.filter((e) => !e.userId || e.userId === targetUserId)
           : [];
         const incomingIds = new Set(validIncoming.map((e) => e.id));
-        const localOnly = get().expenses.filter(
-          (e) => (e.userId === targetUserId || !e.userId) && !incomingIds.has(e.id)
-        );
+        const localOnly = get().expenses.filter((e) => {
+          if (e.userId && e.userId !== targetUserId) return false;
+          if (incomingIds.has(e.id)) return false;
+          // If it's a temp id, check if an identical incoming item already exists
+          if (e.id.startsWith('exp-') || e.id.startsWith('local-')) {
+            const matches = validIncoming.some(
+              (remote) =>
+                Number(remote.amount) === Number(e.amount) &&
+                remote.category === e.category &&
+                remote.date === e.date &&
+                (remote.description || '').trim() === (e.description || '').trim()
+            );
+            if (matches) return false;
+          }
+          return true;
+        });
         const merged = [...validIncoming, ...localOnly];
-        set({ expenses: merged, isLoading: false });
-        syncWebStorage({ expenses: merged });
+        const seen = new Set<string>();
+        const deduped: Expense[] = [];
+        for (const item of merged) {
+          if (!seen.has(item.id)) {
+            seen.add(item.id);
+            deduped.push(item);
+          }
+        }
+        set({ expenses: deduped, isLoading: false });
+        syncWebStorage({ expenses: deduped });
       },
 
       setIncomes: (incomingIncomes, forUserId) => {
@@ -243,12 +264,32 @@ export const useExpenseStore = create<ExpenseStoreState>()(
           ? incomingIncomes.filter((i) => !i.userId || i.userId === targetUserId)
           : [];
         const incomingIds = new Set(validIncoming.map((i) => i.id));
-        const localOnly = get().incomes.filter(
-          (i) => (i.userId === targetUserId || !i.userId) && !incomingIds.has(i.id)
-        );
+        const localOnly = get().incomes.filter((i) => {
+          if (i.userId && i.userId !== targetUserId) return false;
+          if (incomingIds.has(i.id)) return false;
+          if (i.id.startsWith('inc-') || i.id.startsWith('local-')) {
+            const matches = validIncoming.some(
+              (remote) =>
+                Number(remote.amount) === Number(i.amount) &&
+                remote.source === i.source &&
+                remote.date === i.date &&
+                (remote.description || '').trim() === (i.description || '').trim()
+            );
+            if (matches) return false;
+          }
+          return true;
+        });
         const merged = [...validIncoming, ...localOnly];
-        set({ incomes: merged });
-        syncWebStorage({ incomes: merged });
+        const seen = new Set<string>();
+        const deduped: Income[] = [];
+        for (const item of merged) {
+          if (!seen.has(item.id)) {
+            seen.add(item.id);
+            deduped.push(item);
+          }
+        }
+        set({ incomes: deduped });
+        syncWebStorage({ incomes: deduped });
       },
 
       setBudgets: (incomingBudgets, forUserId) => {
@@ -294,17 +335,21 @@ export const useExpenseStore = create<ExpenseStoreState>()(
         };
 
         // 1. Immediate optimistic UI and synchronous persistent storage update
-        const updatedExpenses = [newExp, ...get().expenses];
+        const updatedExpenses = [newExp, ...get().expenses.filter((e) => e.id !== tempId)];
         set({ expenses: updatedExpenses });
         syncWebStorage({ expenses: updatedExpenses });
 
-        // 2. Persist to Firestore in background
+        // 2. Persist to Firestore in background passing newExp so tempId is preserved
         try {
-          const realId = await expenseService.createExpense(expense);
+          const realId = await expenseService.createExpense(newExp);
           if (realId && realId !== tempId) {
-            const finalizedExpenses = get().expenses.map((e) => (e.id === tempId ? { ...e, id: realId } : e));
-            set({ expenses: finalizedExpenses });
-            syncWebStorage({ expenses: finalizedExpenses });
+            const currentList = get().expenses;
+            const hasReal = currentList.some((e) => e.id === realId);
+            const finalized = hasReal
+              ? currentList.filter((e) => e.id !== tempId)
+              : currentList.map((e) => (e.id === tempId ? { ...e, id: realId } : e));
+            set({ expenses: finalized });
+            syncWebStorage({ expenses: finalized });
             return realId;
           }
         } catch (err) {
@@ -347,17 +392,21 @@ export const useExpenseStore = create<ExpenseStoreState>()(
         };
 
         // 1. Immediate optimistic UI and synchronous persistent storage update
-        const updatedIncomes = [newInc, ...get().incomes];
+        const updatedIncomes = [newInc, ...get().incomes.filter((i) => i.id !== tempId)];
         set({ incomes: updatedIncomes });
         syncWebStorage({ incomes: updatedIncomes });
 
-        // 2. Persist to Firestore in background
+        // 2. Persist to Firestore in background passing newInc so tempId is preserved
         try {
-          const realId = await incomeService.createIncome(income);
+          const realId = await incomeService.createIncome(newInc);
           if (realId && realId !== tempId) {
-            const finalizedIncomes = get().incomes.map((i) => (i.id === tempId ? { ...i, id: realId } : i));
-            set({ incomes: finalizedIncomes });
-            syncWebStorage({ incomes: finalizedIncomes });
+            const currentList = get().incomes;
+            const hasReal = currentList.some((i) => i.id === realId);
+            const finalized = hasReal
+              ? currentList.filter((i) => i.id !== tempId)
+              : currentList.map((i) => (i.id === tempId ? { ...i, id: realId } : i));
+            set({ incomes: finalized });
+            syncWebStorage({ incomes: finalized });
             return realId;
           }
         } catch (err) {

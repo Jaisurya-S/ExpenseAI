@@ -95,9 +95,26 @@ export const expenseService = {
 
           // Retain any locally saved items that are not yet in Firestore (e.g. exp- temp ids or unsynced offline items)
           const remoteIdSet = new Set(validRemoteItems.map((r) => r.id));
-          const unsyncedLocalItems = localItems.filter(
-            (local) => (local.userId === activeUserId || !local.userId) && !deletedIds.has(local.id) && (!remoteIdSet.has(local.id) || local.id.startsWith('exp-') || local.id.startsWith('local-'))
-          );
+          const unsyncedLocalItems = localItems.filter((local) => {
+            if (local.userId && local.userId !== activeUserId) return false;
+            if (deletedIds.has(local.id)) return false;
+            if (remoteIdSet.has(local.id)) return false;
+
+            // If it's a temporary item, check if there's already an identical remote item (same amount, category, date, description)
+            if (local.id.startsWith('exp-') || local.id.startsWith('local-')) {
+              const isDuplicateOfRemote = validRemoteItems.some(
+                (remote) =>
+                  Number(remote.amount) === Number(local.amount) &&
+                  remote.category === local.category &&
+                  remote.date === local.date &&
+                  (remote.description || '').trim() === (local.description || '').trim()
+              );
+              if (isDuplicateOfRemote) {
+                return false;
+              }
+            }
+            return true;
+          });
 
           // Merge: remote items + unsynced local items (avoiding duplicates)
           const mergedMap = new Map<string, Expense>();
@@ -122,48 +139,6 @@ export const expenseService = {
           // Persist merged data locally
           await safeStorage.setItem(cacheKey, JSON.stringify(allItems));
           onData(allItems);
-
-          // Background auto-sync unsynced local items to Firestore
-          for (const unsynced of unsyncedLocalItems) {
-            if ((unsynced.id.startsWith('exp-') || unsynced.id.startsWith('local-')) && !syncingIds.has(unsynced.id)) {
-              syncingIds.add(unsynced.id);
-              (async () => {
-                try {
-                  const payload = sanitizeForFirestore({
-                    userId: unsynced.userId || activeUserId,
-                    amount: unsynced.amount,
-                    category: unsynced.category,
-                    description: unsynced.description,
-                    merchant: unsynced.merchant || '',
-                    date: unsynced.date,
-                    paymentMethod: unsynced.paymentMethod,
-                    receiptUrl: unsynced.receiptUrl || '',
-                    notes: unsynced.notes || '',
-                    tags: unsynced.tags || [],
-                    aiConfidence: unsynced.aiConfidence || null,
-                    aiSuggestedCategory: unsynced.aiSuggestedCategory || null,
-                    isAiGenerated: Boolean(unsynced.isAiGenerated),
-                    inputMethod: unsynced.inputMethod || 'manual',
-                    createdAt: serverTimestamp(),
-                  });
-                  const docRef = await addDoc(collection(db, EXPENSES_COLLECTION), payload);
-                  
-                  // Update local cache with real firestore ID
-                  const latestCached = await safeStorage.getItem(cacheKey);
-                  if (latestCached) {
-                    let items: Expense[] = JSON.parse(latestCached);
-                    items = items.map((e) => (e.id === unsynced.id ? { ...e, id: docRef.id } : e));
-                    await safeStorage.setItem(cacheKey, JSON.stringify(items));
-                    onData(items);
-                  }
-                } catch (syncErr) {
-                  console.warn('Background expense sync error:', syncErr);
-                } finally {
-                  syncingIds.delete(unsynced.id);
-                }
-              })();
-            }
-          }
         },
         async (firestoreError) => {
           console.warn('Firestore subscription fallback to local cache:', firestoreError);
@@ -197,15 +172,15 @@ export const expenseService = {
   },
 
   // Create new expense with immediate local persistence
-  createExpense: async (expense: Omit<Expense, 'id' | 'createdAt'>): Promise<string> => {
-    const tempId = 'exp-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
+  createExpense: async (expense: { id?: string; createdAt?: string } & Omit<Expense, 'id' | 'createdAt'>): Promise<string> => {
+    const tempId = expense.id || ('exp-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7));
     const activeUserId = expense.userId || 'demo-user';
     const cacheKey = getCacheKey(activeUserId);
 
     const newExp: Expense = {
       ...expense,
       id: tempId,
-      createdAt: new Date().toISOString(),
+      createdAt: expense.createdAt || new Date().toISOString(),
     };
 
     // 1. Immediately write to local cache so reload will NEVER lose it
@@ -223,11 +198,20 @@ export const expenseService = {
     // 2. Attempt Firestore write with sanitized payload
     try {
       const payload = sanitizeForFirestore({
-        ...expense,
+        userId: activeUserId,
+        amount: Number(expense.amount) || 0,
+        category: expense.category,
+        description: expense.description || '',
         merchant: expense.merchant || '',
+        date: expense.date,
+        paymentMethod: expense.paymentMethod,
         receiptUrl: expense.receiptUrl || '',
         notes: expense.notes || '',
         tags: expense.tags || [],
+        aiConfidence: expense.aiConfidence || null,
+        aiSuggestedCategory: expense.aiSuggestedCategory || null,
+        isAiGenerated: Boolean(expense.isAiGenerated),
+        inputMethod: expense.inputMethod || 'manual',
         createdAt: serverTimestamp(),
       });
 
@@ -241,8 +225,17 @@ export const expenseService = {
         if (cached) {
           let items: Expense[] = JSON.parse(cached);
           items = items.map((e) => (e.id === tempId ? { ...e, id: finalId } : e));
-          await safeStorage.setItem(cacheKey, JSON.stringify(items));
-          await safeStorage.setItem(UNIVERSAL_KEY, JSON.stringify(items));
+          // Deduplicate if finalId somehow exists already
+          const seen = new Set<string>();
+          const deduped: Expense[] = [];
+          for (const item of items) {
+            if (!seen.has(item.id)) {
+              seen.add(item.id);
+              deduped.push(item);
+            }
+          }
+          await safeStorage.setItem(cacheKey, JSON.stringify(deduped));
+          await safeStorage.setItem(UNIVERSAL_KEY, JSON.stringify(deduped));
         }
       } catch {}
 
