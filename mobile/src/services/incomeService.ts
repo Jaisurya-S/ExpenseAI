@@ -6,7 +6,6 @@ import {
   deleteDoc,
   query,
   where,
-  orderBy,
   onSnapshot,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -15,7 +14,7 @@ import { Income } from '../types';
 import safeStorage from './safeStorage';
 
 const INCOMES_COLLECTION = 'incomes';
-const CACHE_KEY = '@xpenseai_cached_incomes';
+const getCacheKey = (userId: string) => `@xpenseai_cached_incomes_${userId || 'default'}`;
 
 export const incomeService = {
   // Subscribe to real-time income updates
@@ -24,11 +23,24 @@ export const incomeService = {
     onData: (incomes: Income[]) => void,
     onError?: (err: Error) => void
   ) => {
+    const cacheKey = getCacheKey(userId);
+
+    // 1. Instantly load local cache so data is immediately visible on app open / reload
+    safeStorage.getItem(cacheKey).then((cached) => {
+      if (cached) {
+        try {
+          const parsed: Income[] = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            onData(parsed);
+          }
+        } catch {}
+      }
+    });
+
     try {
       const q = query(
         collection(db, INCOMES_COLLECTION),
-        where('userId', '==', userId),
-        orderBy('date', 'desc')
+        where('userId', '==', userId)
       );
 
       const unsubscribe = onSnapshot(
@@ -54,13 +66,20 @@ export const incomeService = {
             });
           });
 
-          // Cache locally
-          await safeStorage.setItem(CACHE_KEY, JSON.stringify(items));
+          // Sort descending by date, then createdAt
+          items.sort((a, b) => {
+            const dateCmp = (b.date || '').localeCompare(a.date || '');
+            if (dateCmp !== 0) return dateCmp;
+            return (b.createdAt || '').localeCompare(a.createdAt || '');
+          });
+
+          // Cache locally under user key
+          await safeStorage.setItem(cacheKey, JSON.stringify(items));
           onData(items);
         },
         async (firestoreError) => {
-          // Load local cache or empty
-          const cached = await safeStorage.getItem(CACHE_KEY);
+          console.warn('Firestore income subscription fallback to local cache:', firestoreError);
+          const cached = await safeStorage.getItem(cacheKey);
           if (cached) {
             try {
               const parsed: Income[] = JSON.parse(cached);
@@ -68,8 +87,6 @@ export const incomeService = {
             } catch {
               onData([]);
             }
-          } else {
-            onData([]);
           }
           if (onError) onError(firestoreError);
         }
@@ -83,9 +100,11 @@ export const incomeService = {
     }
   },
 
-  // Create new income
+  // Create new income record
   createIncome: async (income: Omit<Income, 'id' | 'createdAt'>): Promise<string> => {
     let finalId = 'inc-' + Date.now();
+    const cacheKey = getCacheKey(income.userId);
+
     try {
       const docRef = await addDoc(collection(db, INCOMES_COLLECTION), {
         ...income,
@@ -98,7 +117,7 @@ export const incomeService = {
     }
 
     try {
-      const cached = await safeStorage.getItem(CACHE_KEY);
+      const cached = await safeStorage.getItem(cacheKey);
       const items: Income[] = cached ? JSON.parse(cached) : [];
       const newInc: Income = {
         ...income,
@@ -107,9 +126,9 @@ export const incomeService = {
       };
       const filtered = items.filter((i) => i.id !== finalId);
       filtered.unshift(newInc);
-      await safeStorage.setItem(CACHE_KEY, JSON.stringify(filtered));
+      await safeStorage.setItem(cacheKey, JSON.stringify(filtered));
     } catch (cacheErr) {
-      console.warn('AsyncStorage income cache write error:', cacheErr);
+      console.warn('safeStorage cache write error:', cacheErr);
     }
 
     return finalId;
@@ -125,42 +144,45 @@ export const incomeService = {
           updatedAt: serverTimestamp(),
         });
       } catch (err: any) {
-        console.warn('Firestore income update fallback to local cache:', err?.message || err);
+        console.warn('Firestore update income fallback to local cache:', err?.message || err);
       }
     }
 
     try {
-      const cached = await safeStorage.getItem(CACHE_KEY);
+      const userId = updates.userId || 'default';
+      const cacheKey = getCacheKey(userId);
+      const cached = await safeStorage.getItem(cacheKey);
       if (cached) {
         let items: Income[] = JSON.parse(cached);
         items = items.map((i) => (i.id === id ? { ...i, ...updates } : i));
-        await safeStorage.setItem(CACHE_KEY, JSON.stringify(items));
+        await safeStorage.setItem(cacheKey, JSON.stringify(items));
       }
     } catch (cacheErr) {
-      console.warn('AsyncStorage income cache update error:', cacheErr);
+      console.warn('safeStorage cache update error:', cacheErr);
     }
   },
 
   // Delete income
-  deleteIncome: async (id: string): Promise<void> => {
+  deleteIncome: async (id: string, userId?: string): Promise<void> => {
     if (!id.startsWith('local-') && !id.startsWith('inc-')) {
       try {
         const docRef = doc(db, INCOMES_COLLECTION, id);
         await deleteDoc(docRef);
       } catch (err: any) {
-        console.warn('Firestore income delete fallback to local cache:', err?.message || err);
+        console.warn('Firestore delete income fallback to local cache:', err?.message || err);
       }
     }
 
     try {
-      const cached = await safeStorage.getItem(CACHE_KEY);
+      const cacheKey = getCacheKey(userId || 'default');
+      const cached = await safeStorage.getItem(cacheKey);
       if (cached) {
         let items: Income[] = JSON.parse(cached);
         items = items.filter((i) => i.id !== id);
-        await safeStorage.setItem(CACHE_KEY, JSON.stringify(items));
+        await safeStorage.setItem(cacheKey, JSON.stringify(items));
       }
     } catch (cacheErr) {
-      console.warn('AsyncStorage income cache delete error:', cacheErr);
+      console.warn('safeStorage cache delete error:', cacheErr);
     }
   },
 };
