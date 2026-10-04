@@ -1,0 +1,287 @@
+import {
+  Plus,
+  Minus,
+  X,
+  Check,
+  CheckCircle2,
+  AlertCircle,
+  Sparkles,
+  Calendar,
+  CalendarDays,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight,
+  TrendingUp,
+  TrendingDown,
+  ArrowUpRight,
+  ArrowDownLeft,
+  DollarSign,
+  Wallet,
+  CreditCard,
+  Building2,
+  Building,
+  Utensils,
+  ShoppingCart,
+  Car,
+  ShoppingBag,
+  Receipt,
+  Film,
+  HeartPulse,
+  GraduationCap,
+  MoreHorizontal,
+  CirclePlus,
+  Briefcase,
+  Laptop,
+  Award,
+  Gift,
+  RefreshCw,
+  Percent,
+  Landmark,
+  HandCoins,
+  PiggyBank,
+  Smartphone,
+  Banknote,
+  CircleEllipsis,
+  Mic,
+  MicOff,
+  Camera,
+  Image,
+  Upload,
+  Trash2,
+  Edit,
+  Edit3,
+  Search,
+  Filter,
+  Layers,
+  PieChart,
+  BarChart3,
+  Settings,
+  User,
+  LogOut,
+  Moon,
+  Sun,
+  Zap,
+  Info,
+  SlidersHorizontal,
+  Home,
+  FileText,
+  Scan,
+} from 'lucide-react-native';
+import { iconWithClassName } from '../../lib/icons/iconWithClassName';
+
+// Wrap shadcn official Lucide icons with Tailwind className support
+iconWithClassName(Plus);
+iconWithClassName(Minus);
+iconWithClassName(X);
+iconWithClassName(Check);
+iconWithClassName(CheckCircle2);
+iconWithClassName(AlertCircle);
+iconWithClassName(Sparkles);
+iconWithClassName(Calendar);
+iconWithClassName(CalendarDays);
+iconWithClassName(Clock);
+iconWithClassName(ChevronDown);
+iconWithClassName(ChevronUp);
+iconWithClassName(ChevronLeft);
+iconWithClassName(ChevronRight);
+iconWithClassName(TrendingUp);
+iconWithClassName(TrendingDown);
+iconWithClassName(ArrowUpRight);
+iconWithClassName(ArrowDownLeft);
+iconWithClassName(DollarSign);
+iconWithClassName(Wallet);
+iconWithClassName(CreditCard);
+iconWithClassName(Building2);
+iconWithClassName(Building);
+iconWithClassName(Utensils);
+iconWithClassName(ShoppingCart);
+iconWithClassName(Car);
+iconWithClassName(ShoppingBag);
+iconWithClassName(Receipt);
+iconWithClassName(Film);
+iconWithClassName(HeartPulse);
+iconWithClassName(GraduationCap);
+iconWithClassName(MoreHorizontal);
+iconWithClassName(CirclePlus);
+iconWithClassName(Briefcase);
+iconWithClassName(Laptop);
+iconWithClassName(Award);
+iconWithClassName(Gift);
+iconWithClassName(RefreshCw);
+iconWithClassName(Percent);
+iconWithClassName(Landmark);
+iconWithClassName(HandCoins);
+iconWithClassName(PiggyBank);
+iconWithClassName(Smartphone);
+iconWithClassName(Banknote);
+iconWithClassName(CircleEllipsis);
+iconWithClassName(Mic);
+iconWithClassName(MicOff);
+iconWithClassName(Camera);
+iconWithClassName(Image);
+iconWithClassName(Upload);
+iconWithClassName(Trash2);
+iconWithClassName(Edit);
+iconWithClassName(Edit3);
+iconWithClassName(Search);
+iconWithClassName(Filter);
+iconWithClassName(Layers);
+iconWithClassName(PieChart);
+iconWithClassName(BarChart3);
+iconWithClassName(Settings);
+iconWithClassName(User);
+iconWithClassName(LogOut);
+iconWithClassName(Moon);
+iconWithClassName(Sun);
+iconWithClassName(Zap);
+iconWithClassName(Info);
+iconWithClassName(SlidersHorizontal);
+iconWithClassName(Home);
+iconWithClassName(FileText);
+iconWithClassName(Scan);
+
+export {
+  Plus,
+  Minus,
+  X,
+  Check,
+  CheckCircle2,
+  AlertCircle,
+  Sparkles,
+  Calendar,
+  CalendarDays,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight,
+  TrendingUp,
+  TrendingDown,
+  ArrowUpRight,
+  ArrowDownLeft,
+  DollarSign,
+  Wallet,
+  CreditCard,
+  Building2,
+  Building,
+  Utensils,
+  ShoppingCart,
+  Car,
+  ShoppingBag,
+  Receipt,
+  Film,
+  HeartPulse,
+  GraduationCap,
+  MoreHorizontal,
+  CirclePlus,
+  Briefcase,
+  Laptop,
+  Award,
+  Gift,
+  RefreshCw,
+  Percent,
+  Landmark,
+  HandCoins,
+  PiggyBank,
+  Smartphone,
+  Banknote,
+  CircleEllipsis,
+  Mic,
+  MicOff,
+  Camera,
+  Image,
+  Upload,
+  Trash2,
+  Edit,
+  Edit3,
+  Search,
+  Filter,
+  Layers,
+  PieChart,
+  BarChart3,
+  Settings,
+  User,
+  LogOut,
+  Moon,
+  Sun,
+  Zap,
+  Info,
+  SlidersHorizontal,
+  Home,
+  FileText,
+  Scan,
+};
+
+export const Icons = {
+  Plus,
+  Minus,
+  X,
+  Check,
+  CheckCircle2,
+  AlertCircle,
+  Sparkles,
+  Calendar,
+  CalendarDays,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight,
+  TrendingUp,
+  TrendingDown,
+  ArrowUpRight,
+  ArrowDownLeft,
+  DollarSign,
+  Wallet,
+  CreditCard,
+  Building2,
+  Building,
+  Utensils,
+  ShoppingCart,
+  Car,
+  ShoppingBag,
+  Receipt,
+  Film,
+  HeartPulse,
+  GraduationCap,
+  MoreHorizontal,
+  CirclePlus,
+  Briefcase,
+  Laptop,
+  Award,
+  Gift,
+  RefreshCw,
+  Percent,
+  Landmark,
+  HandCoins,
+  PiggyBank,
+  Smartphone,
+  Banknote,
+  CircleEllipsis,
+  Mic,
+  MicOff,
+  Camera,
+  Image,
+  Upload,
+  Trash2,
+  Edit,
+  Edit3,
+  Search,
+  Filter,
+  Layers,
+  PieChart,
+  BarChart3,
+  Settings,
+  User,
+  LogOut,
+  Moon,
+  Sun,
+  Zap,
+  Info,
+  SlidersHorizontal,
+  Home,
+  FileText,
+  Scan,
+};
