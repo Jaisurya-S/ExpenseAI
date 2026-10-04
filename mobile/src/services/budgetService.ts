@@ -172,6 +172,7 @@ export const budgetService = {
       const filtered = items.filter((b) => b.id !== budgetId && b.category !== category);
       filtered.push(newBudget);
       await safeStorage.setItem(cacheKey, JSON.stringify(filtered));
+      await safeStorage.setItem(UNIVERSAL_KEY, JSON.stringify(filtered));
     } catch (cacheErr) {
       console.warn('safeStorage budget write error:', cacheErr);
     }
@@ -212,6 +213,7 @@ export const budgetService = {
       const filtered = items.filter((b) => !b.isOverall && b.id !== budgetId);
       filtered.push(overallBudget);
       await safeStorage.setItem(cacheKey, JSON.stringify(filtered));
+      await safeStorage.setItem(UNIVERSAL_KEY, JSON.stringify(filtered));
     } catch (cacheErr) {
       console.warn('safeStorage budget write error:', cacheErr);
     }

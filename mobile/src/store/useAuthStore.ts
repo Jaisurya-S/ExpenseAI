@@ -44,14 +44,43 @@ const DEFAULT_PROFILE: UserProfile = {
   createdAt: new Date().toISOString(),
 };
 
+const AUTH_STORE_KEY = '@xpenseai_master_auth_store';
+
+const getInitialAuthPersistedState = (): { profile: UserProfile; themeMode: 'dark' | 'light' | 'system' } => {
+  try {
+    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined' && window.localStorage) {
+      const stored = window.localStorage.getItem(AUTH_STORE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed.state) {
+          return {
+            profile: parsed.state.profile ? { ...DEFAULT_PROFILE, ...parsed.state.profile } : DEFAULT_PROFILE,
+            themeMode: parsed.state.themeMode || 'dark',
+          };
+        }
+      }
+      const legacy = window.localStorage.getItem('@xpenseai_user_profile');
+      if (legacy) {
+        return {
+          profile: { ...DEFAULT_PROFILE, ...JSON.parse(legacy) },
+          themeMode: (window.localStorage.getItem('@xpenseai_theme_mode') as any) || 'dark',
+        };
+      }
+    }
+  } catch {}
+  return { profile: DEFAULT_PROFILE, themeMode: 'dark' };
+};
+
+const initialAuthState = getInitialAuthPersistedState();
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
-      profile: DEFAULT_PROFILE,
+      profile: initialAuthState.profile,
       isLoading: false,
-      isInitialized: false,
-      themeMode: 'dark',
+      isInitialized: true,
+      themeMode: initialAuthState.themeMode,
 
   initAuth: () => {
     let profileLoaded = false;

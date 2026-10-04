@@ -15,9 +15,85 @@ import { expenseService } from '../services/expenseService';
 import { incomeService } from '../services/incomeService';
 import { budgetService } from '../services/budgetService';
 
-export const EXPENSES_STORAGE_KEY = '@xpenseai_stored_expenses';
-export const INCOMES_STORAGE_KEY = '@xpenseai_stored_incomes';
-export const BUDGETS_STORAGE_KEY = '@xpenseai_stored_budgets';
+const STORE_KEY = '@xpenseai_master_expense_store';
+
+// Synchronous initial load from browser localStorage for instant frame-1 rendering on web
+const getInitialPersistedState = (): { expenses: Expense[]; incomes: Income[]; budgets: Budget[] } => {
+  try {
+    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined' && window.localStorage) {
+      // 1. Try master store key
+      const stored = window.localStorage.getItem(STORE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed.state) {
+          const expenses = Array.isArray(parsed.state.expenses) ? parsed.state.expenses : [];
+          const incomes = Array.isArray(parsed.state.incomes) ? parsed.state.incomes : [];
+          const budgets = Array.isArray(parsed.state.budgets) ? parsed.state.budgets : [];
+          if (expenses.length > 0 || incomes.length > 0 || budgets.length > 0) {
+            return { expenses, incomes, budgets };
+          }
+        }
+      }
+
+      // 2. Fallback check for legacy individual keys
+      let fallbackExpenses: Expense[] = [];
+      let fallbackIncomes: Income[] = [];
+      let fallbackBudgets: Budget[] = [];
+
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const key = window.localStorage.key(i);
+        if (key && (key.startsWith('@xpenseai_cached_expenses_') || key === '@xpenseai_stored_expenses')) {
+          try {
+            const data = JSON.parse(window.localStorage.getItem(key) || '[]');
+            if (Array.isArray(data)) fallbackExpenses = [...fallbackExpenses, ...data];
+          } catch {}
+        }
+        if (key && (key.startsWith('@xpenseai_cached_incomes_') || key === '@xpenseai_stored_incomes')) {
+          try {
+            const data = JSON.parse(window.localStorage.getItem(key) || '[]');
+            if (Array.isArray(data)) fallbackIncomes = [...fallbackIncomes, ...data];
+          } catch {}
+        }
+        if (key && (key.startsWith('@xpenseai_cached_budgets_') || key === '@xpenseai_stored_budgets')) {
+          try {
+            const data = JSON.parse(window.localStorage.getItem(key) || '[]');
+            if (Array.isArray(data)) fallbackBudgets = [...fallbackBudgets, ...data];
+          } catch {}
+        }
+      }
+
+      const expMap = new Map<string, Expense>();
+      fallbackExpenses.forEach((e) => expMap.set(e.id, e));
+      const incMap = new Map<string, Income>();
+      fallbackIncomes.forEach((i) => incMap.set(i.id, i));
+      const budMap = new Map<string, Budget>();
+      fallbackBudgets.forEach((b) => budMap.set(b.id, b));
+
+      return {
+        expenses: Array.from(expMap.values()),
+        incomes: Array.from(incMap.values()),
+        budgets: Array.from(budMap.values()),
+      };
+    }
+  } catch {}
+  return { expenses: [], incomes: [], budgets: [] };
+};
+
+// Direct synchronous browser localStorage persistence helper
+const syncWebStorage = (state: Partial<ExpenseStoreState>) => {
+  try {
+    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined' && window.localStorage) {
+      const existing = window.localStorage.getItem(STORE_KEY);
+      let parsed = existing ? JSON.parse(existing) : { state: {}, version: 0 };
+      if (!parsed.state) parsed.state = {};
+      parsed.state = {
+        ...parsed.state,
+        ...state,
+      };
+      window.localStorage.setItem(STORE_KEY, JSON.stringify(parsed));
+    }
+  } catch {}
+};
 
 interface ExpenseFilterState {
   searchQuery: string;
@@ -84,13 +160,14 @@ interface ExpenseStoreState {
 }
 
 const currentYearMonth = new Date().toISOString().slice(0, 7);
+const initialData = getInitialPersistedState();
 
 export const useExpenseStore = create<ExpenseStoreState>()(
   persist(
     (set, get) => ({
-      expenses: [],
-      incomes: [],
-      budgets: [],
+      expenses: initialData.expenses,
+      incomes: initialData.incomes,
+      budgets: initialData.budgets,
       isLoading: false,
       filters: {
         searchQuery: '',
@@ -108,9 +185,13 @@ export const useExpenseStore = create<ExpenseStoreState>()(
 
       setExpenses: (incomingExpenses) => {
         if (Array.isArray(incomingExpenses) && incomingExpenses.length > 0) {
-          set({ expenses: incomingExpenses, isLoading: false });
-        } else if (get().expenses.length === 0) {
-          set({ expenses: [], isLoading: false });
+          const incomingIds = new Set(incomingExpenses.map((e) => e.id));
+          const localOnly = get().expenses.filter(
+            (e) => !incomingIds.has(e.id)
+          );
+          const merged = [...incomingExpenses, ...localOnly];
+          set({ expenses: merged, isLoading: false });
+          syncWebStorage({ expenses: merged });
         } else {
           set({ isLoading: false });
         }
@@ -118,17 +199,23 @@ export const useExpenseStore = create<ExpenseStoreState>()(
 
       setIncomes: (incomingIncomes) => {
         if (Array.isArray(incomingIncomes) && incomingIncomes.length > 0) {
-          set({ incomes: incomingIncomes });
-        } else if (get().incomes.length === 0) {
-          set({ incomes: [] });
+          const incomingIds = new Set(incomingIncomes.map((i) => i.id));
+          const localOnly = get().incomes.filter(
+            (i) => !incomingIds.has(i.id)
+          );
+          const merged = [...incomingIncomes, ...localOnly];
+          set({ incomes: merged });
+          syncWebStorage({ incomes: merged });
         }
       },
 
       setBudgets: (incomingBudgets) => {
         if (Array.isArray(incomingBudgets) && incomingBudgets.length > 0) {
-          set({ budgets: incomingBudgets });
-        } else if (get().budgets.length === 0) {
-          set({ budgets: [] });
+          const incomingIds = new Set(incomingBudgets.map((b) => b.id));
+          const localOnly = get().budgets.filter((b) => !incomingIds.has(b.id));
+          const merged = [...incomingBudgets, ...localOnly];
+          set({ budgets: merged });
+          syncWebStorage({ budgets: merged });
         }
       },
 
@@ -160,9 +247,10 @@ export const useExpenseStore = create<ExpenseStoreState>()(
           createdAt: new Date().toISOString(),
         };
 
-        // 1. Immediate optimistic UI and persistent storage update
+        // 1. Immediate optimistic UI and synchronous persistent storage update
         const updatedExpenses = [newExp, ...get().expenses];
         set({ expenses: updatedExpenses });
+        syncWebStorage({ expenses: updatedExpenses });
 
         // 2. Persist to Firestore in background
         try {
@@ -170,6 +258,7 @@ export const useExpenseStore = create<ExpenseStoreState>()(
           if (realId && realId !== tempId) {
             const finalizedExpenses = get().expenses.map((e) => (e.id === tempId ? { ...e, id: realId } : e));
             set({ expenses: finalizedExpenses });
+            syncWebStorage({ expenses: finalizedExpenses });
             return realId;
           }
         } catch (err) {
@@ -181,6 +270,7 @@ export const useExpenseStore = create<ExpenseStoreState>()(
       updateExpense: async (id, updates) => {
         const updatedExpenses = get().expenses.map((e) => (e.id === id ? { ...e, ...updates } : e));
         set({ expenses: updatedExpenses });
+        syncWebStorage({ expenses: updatedExpenses });
 
         try {
           await expenseService.updateExpense(id, updates);
@@ -192,6 +282,7 @@ export const useExpenseStore = create<ExpenseStoreState>()(
       deleteExpense: async (id) => {
         const updatedExpenses = get().expenses.filter((e) => e.id !== id);
         set({ expenses: updatedExpenses });
+        syncWebStorage({ expenses: updatedExpenses });
 
         try {
           await expenseService.deleteExpense(id);
@@ -209,9 +300,10 @@ export const useExpenseStore = create<ExpenseStoreState>()(
           createdAt: new Date().toISOString(),
         };
 
-        // 1. Immediate optimistic UI and persistent storage update
+        // 1. Immediate optimistic UI and synchronous persistent storage update
         const updatedIncomes = [newInc, ...get().incomes];
         set({ incomes: updatedIncomes });
+        syncWebStorage({ incomes: updatedIncomes });
 
         // 2. Persist to Firestore in background
         try {
@@ -219,6 +311,7 @@ export const useExpenseStore = create<ExpenseStoreState>()(
           if (realId && realId !== tempId) {
             const finalizedIncomes = get().incomes.map((i) => (i.id === tempId ? { ...i, id: realId } : i));
             set({ incomes: finalizedIncomes });
+            syncWebStorage({ incomes: finalizedIncomes });
             return realId;
           }
         } catch (err) {
@@ -230,6 +323,7 @@ export const useExpenseStore = create<ExpenseStoreState>()(
       updateIncome: async (id, updates) => {
         const updatedIncomes = get().incomes.map((i) => (i.id === id ? { ...i, ...updates } : i));
         set({ incomes: updatedIncomes });
+        syncWebStorage({ incomes: updatedIncomes });
 
         try {
           await incomeService.updateIncome(id, updates);
@@ -241,6 +335,7 @@ export const useExpenseStore = create<ExpenseStoreState>()(
       deleteIncome: async (id) => {
         const updatedIncomes = get().incomes.filter((i) => i.id !== id);
         set({ incomes: updatedIncomes });
+        syncWebStorage({ incomes: updatedIncomes });
 
         try {
           await incomeService.deleteIncome(id);
@@ -309,6 +404,7 @@ export const useExpenseStore = create<ExpenseStoreState>()(
         }
 
         set({ budgets: updatedBudgets });
+        syncWebStorage({ budgets: updatedBudgets });
 
         try {
           await budgetService.upsertBudget(userId, category, amount, options);
@@ -352,6 +448,7 @@ export const useExpenseStore = create<ExpenseStoreState>()(
         }
 
         set({ budgets: updatedBudgets });
+        syncWebStorage({ budgets: updatedBudgets });
 
         try {
           await budgetService.upsertOverallBudget(userId, amount, period, alertThreshold);
@@ -363,6 +460,7 @@ export const useExpenseStore = create<ExpenseStoreState>()(
       deleteBudget: async (budgetId) => {
         const updatedBudgets = get().budgets.filter((b) => b.id !== budgetId);
         set({ budgets: updatedBudgets });
+        syncWebStorage({ budgets: updatedBudgets });
 
         try {
           await budgetService.deleteBudget(budgetId);
@@ -372,7 +470,7 @@ export const useExpenseStore = create<ExpenseStoreState>()(
       },
     }),
     {
-      name: '@xpenseai_master_expense_store',
+      name: STORE_KEY,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         expenses: state.expenses,
@@ -383,6 +481,7 @@ export const useExpenseStore = create<ExpenseStoreState>()(
     }
   )
 );
+
 
 
 

@@ -205,6 +205,7 @@ export const incomeService = {
       const filtered = items.filter((i) => i.id !== tempId);
       filtered.unshift(newInc);
       await safeStorage.setItem(cacheKey, JSON.stringify(filtered));
+      await safeStorage.setItem(UNIVERSAL_KEY, JSON.stringify(filtered));
     } catch (cacheErr) {
       console.warn('safeStorage cache write error:', cacheErr);
     }
@@ -231,6 +232,7 @@ export const incomeService = {
           let items: Income[] = JSON.parse(cached);
           items = items.map((i) => (i.id === tempId ? { ...i, id: finalId } : i));
           await safeStorage.setItem(cacheKey, JSON.stringify(items));
+          await safeStorage.setItem(UNIVERSAL_KEY, JSON.stringify(items));
         }
       } catch {}
 
