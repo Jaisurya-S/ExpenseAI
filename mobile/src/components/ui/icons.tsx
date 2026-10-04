@@ -17,6 +17,7 @@ import {
   TrendingDown,
   ArrowUpRight,
   ArrowDownLeft,
+  ArrowUpDown,
   DollarSign,
   Wallet,
   CreditCard,
@@ -32,6 +33,7 @@ import {
   GraduationCap,
   MoreHorizontal,
   CirclePlus,
+  PlusCircle,
   Briefcase,
   Laptop,
   Award,
@@ -67,7 +69,26 @@ import {
   SlidersHorizontal,
   Home,
   FileText,
+  FileSpreadsheet,
   Scan,
+  Mail,
+  Lock,
+  LogIn,
+  UserPlus,
+  ArrowLeft,
+  Send,
+  Bot,
+  Bell,
+  RotateCcw,
+  Shield,
+  Globe,
+  Key,
+  HelpCircle,
+  Heart,
+  Share2,
+  Tag,
+  Eye,
+  EyeOff,
 } from 'lucide-react-native';
 import { iconWithClassName } from '../../lib/icons/iconWithClassName';
 
@@ -90,6 +111,7 @@ iconWithClassName(TrendingUp);
 iconWithClassName(TrendingDown);
 iconWithClassName(ArrowUpRight);
 iconWithClassName(ArrowDownLeft);
+iconWithClassName(ArrowUpDown);
 iconWithClassName(DollarSign);
 iconWithClassName(Wallet);
 iconWithClassName(CreditCard);
@@ -105,6 +127,7 @@ iconWithClassName(HeartPulse);
 iconWithClassName(GraduationCap);
 iconWithClassName(MoreHorizontal);
 iconWithClassName(CirclePlus);
+iconWithClassName(PlusCircle);
 iconWithClassName(Briefcase);
 iconWithClassName(Laptop);
 iconWithClassName(Award);
@@ -140,7 +163,26 @@ iconWithClassName(Info);
 iconWithClassName(SlidersHorizontal);
 iconWithClassName(Home);
 iconWithClassName(FileText);
+iconWithClassName(FileSpreadsheet);
 iconWithClassName(Scan);
+iconWithClassName(Mail);
+iconWithClassName(Lock);
+iconWithClassName(LogIn);
+iconWithClassName(UserPlus);
+iconWithClassName(ArrowLeft);
+iconWithClassName(Send);
+iconWithClassName(Bot);
+iconWithClassName(Bell);
+iconWithClassName(RotateCcw);
+iconWithClassName(Shield);
+iconWithClassName(Globe);
+iconWithClassName(Key);
+iconWithClassName(HelpCircle);
+iconWithClassName(Heart);
+iconWithClassName(Share2);
+iconWithClassName(Tag);
+iconWithClassName(Eye);
+iconWithClassName(EyeOff);
 
 export {
   Plus,
@@ -161,6 +203,7 @@ export {
   TrendingDown,
   ArrowUpRight,
   ArrowDownLeft,
+  ArrowUpDown,
   DollarSign,
   Wallet,
   CreditCard,
@@ -176,6 +219,7 @@ export {
   GraduationCap,
   MoreHorizontal,
   CirclePlus,
+  PlusCircle,
   Briefcase,
   Laptop,
   Award,
@@ -211,7 +255,26 @@ export {
   SlidersHorizontal,
   Home,
   FileText,
+  FileSpreadsheet,
   Scan,
+  Mail,
+  Lock,
+  LogIn,
+  UserPlus,
+  ArrowLeft,
+  Send,
+  Bot,
+  Bell,
+  RotateCcw,
+  Shield,
+  Globe,
+  Key,
+  HelpCircle,
+  Heart,
+  Share2,
+  Tag,
+  Eye,
+  EyeOff,
 };
 
 export const Icons = {
@@ -233,6 +296,7 @@ export const Icons = {
   TrendingDown,
   ArrowUpRight,
   ArrowDownLeft,
+  ArrowUpDown,
   DollarSign,
   Wallet,
   CreditCard,
@@ -248,6 +312,7 @@ export const Icons = {
   GraduationCap,
   MoreHorizontal,
   CirclePlus,
+  PlusCircle,
   Briefcase,
   Laptop,
   Award,
@@ -283,5 +348,24 @@ export const Icons = {
   SlidersHorizontal,
   Home,
   FileText,
+  FileSpreadsheet,
   Scan,
+  Mail,
+  Lock,
+  LogIn,
+  UserPlus,
+  ArrowLeft,
+  Send,
+  Bot,
+  Bell,
+  RotateCcw,
+  Shield,
+  Globe,
+  Key,
+  HelpCircle,
+  Heart,
+  Share2,
+  Tag,
+  Eye,
+  EyeOff,
 };

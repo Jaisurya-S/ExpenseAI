@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { View, StyleSheet, Platform } from 'react-native';
-import { Home, Receipt, PieChart, Wallet, User } from 'lucide-react-native';
+import { Home, Receipt, PieChart, Wallet, User } from '../../components/ui/icons';
 
 import { useAppTheme } from '../../hooks/use-theme';
 

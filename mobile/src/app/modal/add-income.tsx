@@ -28,7 +28,7 @@ import {
   Trash2,
   ArrowDownLeft,
   ChevronDown,
-} from 'lucide-react-native';
+} from '../../components/ui/icons';
 
 export default function AddIncomeModal() {
   const router = useRouter();

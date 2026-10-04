@@ -16,7 +16,7 @@ import {
   X,
   Check,
   RotateCcw,
-} from 'lucide-react-native';
+} from '../ui/icons';
 
 interface DatePickerModalProps {
   visible: boolean;

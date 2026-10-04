@@ -31,7 +31,7 @@ import {
   Info,
   CheckCircle2,
   Zap,
-} from 'lucide-react-native';
+} from '../../components/ui/icons';
 
 const VOICE_EXAMPLES = [
   'Tea 20',

@@ -31,7 +31,7 @@ import {
   Tag,
   CreditCard,
   FileText,
-} from 'lucide-react-native';
+} from '../../components/ui/icons';
 
 import { useAppTheme } from '../../hooks/use-theme';
 

@@ -16,7 +16,7 @@ import {
   TrendingUp,
   MoreHorizontal,
   Trash2,
-} from 'lucide-react-native';
+} from '../ui/icons';
 
 interface ExpenseCardProps {
   expense: Expense;

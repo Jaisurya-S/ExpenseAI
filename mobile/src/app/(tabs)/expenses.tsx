@@ -26,7 +26,7 @@ import {
   ArrowUpDown,
   X,
   SlidersHorizontal,
-} from 'lucide-react-native';
+} from '../../components/ui/icons';
 
 type SortOption = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc';
 

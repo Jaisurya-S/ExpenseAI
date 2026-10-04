@@ -26,7 +26,7 @@ import {
   HandCoins,
   PiggyBank,
   CirclePlus,
-} from 'lucide-react-native';
+} from '../ui/icons';
 
 interface TransactionCardProps {
   transaction: UnifiedTransaction;

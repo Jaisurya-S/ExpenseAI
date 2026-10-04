@@ -19,7 +19,7 @@ import { QuickActionGrid } from '../../components/home/QuickActionGrid';
 import { AIBudgetInsightCard } from '../../components/home/AIBudgetInsightCard';
 import { TransactionCard } from '../../components/common/TransactionCard';
 import { generateSpendingInsights } from '../../services/aiService';
-import { Bell, Sparkles, ChevronRight, PlusCircle, ArrowDownLeft, ArrowUpRight, TrendingUp } from 'lucide-react-native';
+import { Bell, Sparkles, ChevronRight, PlusCircle, ArrowDownLeft, ArrowUpRight, TrendingUp } from '../../components/ui/icons';
 import { useAppTheme } from '../../hooks/use-theme';
 import { Expense, Income, UnifiedTransaction } from '../../types';
 

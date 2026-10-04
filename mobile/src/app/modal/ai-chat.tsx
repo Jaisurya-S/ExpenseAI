@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { useExpenseStore } from '../../store/useExpenseStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useAppTheme } from '../../hooks/use-theme';
-import { Sparkles, Send, X, Bot, User } from 'lucide-react-native';
+import { Sparkles, Send, X, Bot, User } from '../../components/ui/icons';
 import Constants from 'expo-constants';
 
 interface ChatMessage {

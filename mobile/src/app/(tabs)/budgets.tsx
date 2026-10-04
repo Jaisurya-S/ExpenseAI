@@ -26,7 +26,7 @@ import {
   ArrowUpRight,
   PiggyBank,
   ChevronRight,
-} from 'lucide-react-native';
+} from '../../components/ui/icons';
 
 const THRESHOLD_OPTIONS = [70, 80, 90, 100];
 const PERIOD_OPTIONS: { id: BudgetPeriod; label: string }[] = [

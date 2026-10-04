@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { ExpenseCategory } from '../../types';
 import { CATEGORIES } from '../../constants/categories';
-import * as Icons from 'lucide-react-native';
+import { Icons } from '../ui/icons';
 
 interface CategoryBadgeProps {
   category: ExpenseCategory;
@@ -19,8 +19,8 @@ export const CategoryBadge: React.FC<CategoryBadgeProps> = ({
 }) => {
   const meta = CATEGORIES[category] || CATEGORIES.Other;
   
-  // Dynamically resolve icon from Lucide
-  const IconComponent = (Icons as any)[meta.iconName] || Icons.CircleDot;
+  // Dynamically resolve icon from shadcn Icons
+  const IconComponent = (Icons as any)[meta.iconName] || Icons.CirclePlus;
   const iconSize = size === 'sm' ? 12 : size === 'lg' ? 20 : 15;
 
   return (

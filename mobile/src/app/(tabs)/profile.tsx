@@ -27,7 +27,7 @@ import {
   Sun,
   Moon,
   Smartphone,
-} from 'lucide-react-native';
+} from '../../components/ui/icons';
 
 const CURRENCIES = ['₹', '$', '€', '£', '¥'];
 const THEME_OPTIONS: { id: 'light' | 'dark' | 'system'; label: string; icon: any }[] = [

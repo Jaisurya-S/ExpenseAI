@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
-import { Camera, Mic, Wallet, Sparkles } from 'lucide-react-native';
+import { Camera, Mic, Wallet, Sparkles } from '../ui/icons';
 import { useAppTheme } from '../../hooks/use-theme';
 
 interface QuickActionGridProps {

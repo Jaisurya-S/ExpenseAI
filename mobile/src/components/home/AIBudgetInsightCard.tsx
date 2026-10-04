@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Sparkles } from 'lucide-react-native';
+import { Sparkles } from '../ui/icons';
 import { useAppTheme } from '../../hooks/use-theme';
 
 interface AIBudgetInsightCardProps {

@@ -28,7 +28,7 @@ import {
   Calendar,
   FileText,
   ChevronDown,
-} from 'lucide-react-native';
+} from '../../components/ui/icons';
 
 export default function AddExpenseModal() {
   const router = useRouter();

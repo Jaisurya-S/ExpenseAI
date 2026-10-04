@@ -24,7 +24,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   PiggyBank,
-} from 'lucide-react-native';
+} from '../../components/ui/icons';
 
 export default function AnalyticsScreen() {
   const { profile } = useAuthStore();

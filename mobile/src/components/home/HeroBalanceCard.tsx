@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useAppTheme } from '../../hooks/use-theme';
-import { ArrowDownLeft, ArrowUpRight, TrendingUp } from 'lucide-react-native';
+import { ArrowDownLeft, ArrowUpRight, TrendingUp } from '../ui/icons';
 
 interface HeroBalanceCardProps {
   availableBalance: number;

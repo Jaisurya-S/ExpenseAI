@@ -4,7 +4,7 @@ import { Budget } from '../../types';
 import { CategoryBadge } from '../common/CategoryBadge';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useAppTheme } from '../../hooks/use-theme';
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronRight } from '../ui/icons';
 
 interface BudgetProgressBarProps {
   budget: Budget;

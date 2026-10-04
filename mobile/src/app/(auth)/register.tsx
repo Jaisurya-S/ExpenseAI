@@ -15,7 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useAppTheme } from '../../hooks/use-theme';
-import { Sparkles, Mail, Lock, User, UserPlus, ArrowLeft, Sun, Moon } from 'lucide-react-native';
+import { Sparkles, Mail, Lock, User, UserPlus, ArrowLeft, Sun, Moon } from '../../components/ui/icons';
 
 export default function RegisterScreen() {
   const router = useRouter();
