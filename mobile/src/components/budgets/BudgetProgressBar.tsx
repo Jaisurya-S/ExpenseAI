@@ -27,43 +27,39 @@ export const BudgetProgressBar: React.FC<BudgetProgressBarProps> = ({
   const isOverBudget = spent > limit;
   const threshold = budget.alertThreshold || 80;
 
-  let statusColor = '#10B981';
+  let statusColor: string = colors.success;
   let statusText = `${currency}${remaining.toLocaleString('en-IN')} left`;
 
   if (isOverBudget) {
-    statusColor = '#EF4444';
+    statusColor = colors.danger;
     statusText = `Over by ${currency}${(spent - limit).toLocaleString('en-IN')}`;
   } else if (percent >= 90) {
-    statusColor = '#EF4444';
+    statusColor = colors.danger;
     statusText = `${currency}${remaining.toLocaleString('en-IN')} left`;
   } else if (percent >= threshold) {
-    statusColor = '#F59E0B';
+    statusColor = colors.accentYellow;
     statusText = `${currency}${remaining.toLocaleString('en-IN')} left`;
   }
 
   const fillWidth = Math.min(100, Math.max(0, percent));
   const fillColor = isOverBudget
-    ? '#EF4444'
+    ? colors.danger
     : percent >= 90
-    ? '#EF4444'
+    ? colors.danger
     : percent >= threshold
-    ? '#F59E0B'
+    ? colors.accentYellow
     : colors.primary;
 
   return (
     <TouchableOpacity
-      activeOpacity={0.75}
+      activeOpacity={0.7}
       onPress={onEdit}
       style={[
         styles.card,
         {
           backgroundColor: colors.card,
-          borderColor: isOverBudget
-            ? 'rgba(239, 68, 68, 0.35)'
-            : isDark
-            ? 'rgba(255, 255, 255, 0.07)'
-            : 'rgba(0, 0, 0, 0.05)',
-          shadowColor: isDark ? '#000' : 'rgba(15, 23, 42, 0.05)',
+          borderColor: isOverBudget ? colors.dangerBorder : colors.cardBorder,
+          shadowColor: colors.cardShadow,
         },
       ]}
     >
@@ -81,7 +77,7 @@ export const BudgetProgressBar: React.FC<BudgetProgressBarProps> = ({
           <Text style={[styles.statusText, { color: statusColor }]}>
             {statusText}
           </Text>
-          <ChevronRight size={14} color={colors.textMuted} />
+          <ChevronRight size={13} color={colors.textMuted} />
         </View>
       </View>
 
@@ -89,7 +85,7 @@ export const BudgetProgressBar: React.FC<BudgetProgressBarProps> = ({
       <View
         style={[
           styles.progressTrack,
-          { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)' },
+          { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' },
         ]}
       >
         <View
@@ -106,7 +102,7 @@ export const BudgetProgressBar: React.FC<BudgetProgressBarProps> = ({
       {/* Footer: Spent / Limit & Percentage */}
       <View style={styles.footerRow}>
         <Text style={[styles.spentSubText, { color: colors.textSecondary }]}>
-          {currency}{spent.toLocaleString('en-IN')} of {currency}{limit.toLocaleString('en-IN')}
+          {currency}{spent.toLocaleString('en-IN')} <Text style={{ color: colors.textMuted }}>of {currency}{limit.toLocaleString('en-IN')}</Text>
         </Text>
         <Text style={[styles.percentText, { color: colors.textSecondary }]}>
           {percent}%
@@ -118,14 +114,14 @@ export const BudgetProgressBar: React.FC<BudgetProgressBarProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 10,
+    borderRadius: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 15,
+    marginBottom: 8,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
     elevation: 1,
   },
   topRow: {
@@ -139,20 +135,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   overallTitle: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '700',
+    letterSpacing: -0.2,
   },
   rightHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
   },
   statusText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
   progressTrack: {
-    height: 6,
+    height: 5,
     borderRadius: 3,
     overflow: 'hidden',
     marginBottom: 8,

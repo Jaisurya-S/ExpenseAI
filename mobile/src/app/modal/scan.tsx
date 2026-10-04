@@ -17,19 +17,15 @@ import * as ImagePicker from 'expo-image-picker';
 import { useExpenseStore } from '../../store/useExpenseStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { scanReceiptWithAI } from '../../services/aiService';
-import { CategoryBadge } from '../../components/common/CategoryBadge';
-import { ALL_CATEGORIES, CATEGORIES, PAYMENT_METHODS } from '../../constants/categories';
+import { ALL_CATEGORIES, PAYMENT_METHODS } from '../../constants/categories';
 import { ExpenseCategory, PaymentMethod, AIParseResult } from '../../types';
 import {
   Camera,
   Image as ImageIcon,
   Sparkles,
   X,
-  Check,
-  Calendar,
   Building2,
-  Tag,
-  CreditCard,
+  Calendar,
   FileText,
 } from '../../components/ui/icons';
 
@@ -43,11 +39,9 @@ export default function ScanModal() {
   const { addExpense } = useExpenseStore();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<AIParseResult | null>(null);
 
-  // Form states for confirmation
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<ExpenseCategory>('Grocery');
   const [description, setDescription] = useState('');
@@ -73,7 +67,6 @@ export default function ScanModal() {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         setImageUri(asset.uri);
-        setImageBase64(asset.base64 || null);
         processImage(asset.uri, asset.base64);
       }
     } catch (err) {
@@ -93,7 +86,6 @@ export default function ScanModal() {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         setImageUri(asset.uri);
-        setImageBase64(asset.base64 || null);
         processImage(asset.uri, asset.base64);
       }
     } catch (err) {
@@ -112,9 +104,8 @@ export default function ScanModal() {
       setMerchant(parsed.merchant);
       setDate(parsed.date);
       setPaymentMethod(parsed.paymentMethod);
-    } catch (err) {
-      console.error('Scan processing error:', err);
-      Alert.alert('OCR Error', 'Could not process receipt automatically. You can fill details manually.');
+    } catch {
+      Alert.alert('OCR Notice', 'Could not parse automatically. You can enter details below.');
     } finally {
       setIsScanning(false);
     }
@@ -123,7 +114,11 @@ export default function ScanModal() {
   const handleConfirmSave = async () => {
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
-      Alert.alert('Invalid Amount', 'Please verify the parsed expense amount.');
+      if (Platform.OS === 'web') {
+        window.alert('Please enter a valid expense amount.');
+      } else {
+        Alert.alert('Invalid Amount', 'Please verify the expense amount.');
+      }
       return;
     }
 
@@ -134,7 +129,7 @@ export default function ScanModal() {
         userId,
         amount: amountNum,
         category,
-        description: description || merchant || 'Receipt Expense',
+        description: description || merchant || `${category} Expense`,
         merchant,
         date,
         paymentMethod,
@@ -145,21 +140,12 @@ export default function ScanModal() {
         receiptUrl: imageUri || undefined,
       });
 
+      router.back();
+    } catch {
       if (Platform.OS === 'web') {
-        router.back();
+        window.alert('Failed to save expense.');
       } else {
-        Alert.alert('Expense Saved! 🎉', `Added ${currency}${amountNum} for ${merchant || category}.`, [
-          {
-            text: 'OK',
-            onPress: () => router.back(),
-          },
-        ]);
-      }
-    } catch (err) {
-      if (Platform.OS === 'web') {
-        window.alert('Failed to save expense. Please try again.');
-      } else {
-        Alert.alert('Save Error', 'Failed to save expense. Please try again.');
+        Alert.alert('Error', 'Failed to save expense.');
       }
     } finally {
       setIsSaving(false);
@@ -168,22 +154,12 @@ export default function ScanModal() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={styles.container}>
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
-          <View style={styles.headerLeft}>
-            <View style={[styles.headerIconCircle, { backgroundColor: colors.primaryLight }]}>
-              <Camera size={20} color={colors.primary} />
-            </View>
-            <View>
-              <Text style={[styles.headerTitle, { color: colors.text }]}>Scan Bill & Receipt</Text>
-              <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
-                AI OCR & Auto-Categorization
-              </Text>
-            </View>
-          </View>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Scan Bill / Receipt</Text>
           <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
-            <X size={20} color={colors.textSecondary} />
+            <X size={18} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -192,12 +168,11 @@ export default function ScanModal() {
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
         >
-          {/* If no image selected yet */}
           {!imageUri ? (
             <View style={styles.pickerSection}>
               <View
                 style={[
-                  styles.scanIllustration,
+                  styles.uploadBox,
                   {
                     backgroundColor: colors.card,
                     borderColor: colors.cardBorder,
@@ -205,291 +180,264 @@ export default function ScanModal() {
                   },
                 ]}
               >
-                <View style={[styles.scanBeam, { backgroundColor: colors.primary }]} />
-                <FileText size={56} color={colors.primary} style={{ marginTop: 8 }} />
-                <Text style={[styles.illustrationTitle, { color: colors.text }]}>
-                  Upload Receipt or Bill
-                </Text>
-                <Text style={[styles.illustrationSub, { color: colors.textSecondary }]}>
-                  Snap a photo or pick an invoice. AI Vision extracts the amount, store name, and
-                  category for one-tap recording.
-                </Text>
-              </View>
-
-              <View style={styles.buttonRow}>
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={takePhoto}
-                  style={[styles.actionButton, styles.cameraButton, { backgroundColor: colors.primary }]}
-                >
-                  <Camera size={18} color="#FFFFFF" />
-                  <Text style={styles.cameraButtonText}>Take Photo</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={pickImage}
+                <View
                   style={[
-                    styles.actionButton,
-                    styles.galleryButton,
+                    styles.uploadIconCircle,
                     {
-                      backgroundColor: colors.card,
-                      borderColor: colors.primary,
+                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+                      borderColor: colors.cardBorder,
                     },
                   ]}
                 >
-                  <ImageIcon size={18} color={colors.primary} />
-                  <Text style={[styles.galleryButtonText, { color: colors.primary }]}>Gallery</Text>
-                </TouchableOpacity>
+                  <Camera size={28} color={colors.text} />
+                </View>
+                <Text style={[styles.uploadTitle, { color: colors.text }]}>
+                  Upload Receipt or Invoice
+                </Text>
+                <Text style={[styles.uploadSub, { color: colors.textMuted }]}>
+                  AI OCR extracts the merchant, total amount, and date automatically.
+                </Text>
+
+                <View style={styles.buttonRow}>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={takePhoto}
+                    style={[styles.primaryUploadBtn, { backgroundColor: colors.primary }]}
+                  >
+                    <Camera size={15} color={colors.primaryText} style={{ marginRight: 6 }} />
+                    <Text style={[styles.primaryUploadText, { color: colors.primaryText }]}>Take Photo</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={pickImage}
+                    style={[
+                      styles.secondaryUploadBtn,
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: colors.cardBorder,
+                      },
+                    ]}
+                  >
+                    <ImageIcon size={15} color={colors.text} style={{ marginRight: 6 }} />
+                    <Text style={[styles.secondaryUploadText, { color: colors.text }]}>Choose File</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
-              {/* Sample Demo Receipt Fast Try */}
+              {/* Demo Sample button */}
               <TouchableOpacity
                 onPress={() => {
                   setImageUri('https://images.unsplash.com/photo-1554415707-9e4c01999908?w=500&q=80');
                   processImage('demo-receipt-uri');
                 }}
                 style={[
-                  styles.sampleTryBtn,
+                  styles.demoSampleBtn,
                   {
-                    backgroundColor: colors.primaryLight,
-                    borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(29, 78, 216, 0.2)',
-                  },
-                ]}
-              >
-                <Sparkles size={14} color={colors.primary} />
-                <Text style={[styles.sampleTryText, { color: colors.primary }]}>
-                  Try Sample Supermarket Receipt
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.resultSection}>
-              {/* Image Preview & Scanning Overlay */}
-              <View
-                style={[
-                  styles.imagePreviewContainer,
-                  {
-                    backgroundColor: colors.card,
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
                     borderColor: colors.cardBorder,
                   },
                 ]}
               >
+                <Sparkles size={13} color={colors.text} style={{ marginRight: 6 }} />
+                <Text style={[styles.demoSampleText, { color: colors.text }]}>
+                  Try Sample Receipt OCR
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View>
+              {/* Receipt Preview & OCR Scanning State */}
+              <View
+                style={[
+                  styles.card,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.cardBorder,
+                    shadowColor: colors.cardShadow,
+                  },
+                ]}
+              >
+                <View style={styles.previewHeader}>
+                  <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>RECEIPT PREVIEW</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setImageUri(null);
+                      setScanResult(null);
+                    }}
+                  >
+                    <Text style={[styles.reuploadText, { color: colors.text }]}>Change Image</Text>
+                  </TouchableOpacity>
+                </View>
+
                 <Image
                   source={{ uri: imageUri }}
                   style={styles.receiptImage}
                   resizeMode="cover"
                 />
+
                 {isScanning && (
                   <View style={styles.scanningOverlay}>
-                    <ActivityIndicator size="large" color="#FFFFFF" />
-                    <Text style={styles.scanningText}>AI Vision Extracting Items & Amount...</Text>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                    <Text style={[styles.scanningText, { color: colors.text }]}>
+                      AI Vision scanning receipt...
+                    </Text>
                   </View>
-                )}
-                {!isScanning && (
-                  <TouchableOpacity
-                    onPress={() => setImageUri(null)}
-                    style={styles.retakeBtn}
-                  >
-                    <Text style={styles.retakeText}>Change Photo</Text>
-                  </TouchableOpacity>
                 )}
               </View>
 
-              {/* Parsed Results Form for confirmation */}
-              {scanResult && !isScanning && (
+              {/* Parsed / Editable Results */}
+              {!isScanning && (
                 <View
                   style={[
-                    styles.formCard,
+                    styles.card,
                     {
                       backgroundColor: colors.card,
                       borderColor: colors.cardBorder,
                       shadowColor: colors.cardShadow,
+                      marginTop: 10,
                     },
                   ]}
                 >
-                  <View
-                    style={[
-                      styles.aiBadgeBanner,
-                      {
-                        backgroundColor: isDark
-                          ? 'rgba(16, 185, 129, 0.16)'
-                          : 'rgba(16, 185, 129, 0.1)',
-                        borderColor: isDark
-                          ? 'rgba(16, 185, 129, 0.3)'
-                          : 'rgba(16, 185, 129, 0.2)',
-                      },
-                    ]}
-                  >
-                    <Sparkles size={14} color="#10B981" />
-                    <Text style={styles.aiBadgeBannerText}>
-                      AI EXTRACTED ({Math.round(scanResult.confidence * 100)}% Confidence)
-                    </Text>
-                  </View>
+                  <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>EXTRACTED DATA</Text>
 
                   {/* Amount */}
-                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                    TOTAL AMOUNT ({currency})
-                  </Text>
-                  <View
-                    style={[
-                      styles.inputRow,
-                      {
-                        backgroundColor: colors.inputBg,
-                        borderColor: colors.inputBorder,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.currencyPrefix, { color: colors.primary }]}>{currency}</Text>
+                  <View style={styles.fieldGroup}>
+                    <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Amount ({currency})</Text>
                     <TextInput
-                      style={[styles.amountInput, { color: colors.text }]}
-                      keyboardType="decimal-pad"
+                      style={[
+                        styles.formInput,
+                        {
+                          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                          color: colors.text,
+                          borderColor: colors.cardBorder,
+                        },
+                      ]}
+                      keyboardType="numeric"
                       value={amount}
                       onChangeText={setAmount}
-                      placeholder="0.00"
-                      placeholderTextColor={colors.textMuted}
-                    />
-                  </View>
-
-                  {/* Merchant */}
-                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                    MERCHANT / STORE
-                  </Text>
-                  <View
-                    style={[
-                      styles.inputRow,
-                      {
-                        backgroundColor: colors.inputBg,
-                        borderColor: colors.inputBorder,
-                      },
-                    ]}
-                  >
-                    <Building2 size={16} color={colors.textSecondary} style={{ marginRight: 8 }} />
-                    <TextInput
-                      style={[styles.textInput, { color: colors.text }]}
-                      value={merchant}
-                      onChangeText={setMerchant}
-                      placeholder="Store or Vendor name"
-                      placeholderTextColor={colors.textMuted}
                     />
                   </View>
 
                   {/* Description */}
-                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                    DESCRIPTION / ITEMS
-                  </Text>
-                  <View
-                    style={[
-                      styles.inputRow,
-                      {
-                        backgroundColor: colors.inputBg,
-                        borderColor: colors.inputBorder,
-                      },
-                    ]}
-                  >
+                  <View style={styles.fieldGroup}>
+                    <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Description</Text>
                     <TextInput
-                      style={[styles.textInput, { color: colors.text }]}
+                      style={[
+                        styles.formInput,
+                        {
+                          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                          color: colors.text,
+                          borderColor: colors.cardBorder,
+                        },
+                      ]}
                       value={description}
                       onChangeText={setDescription}
-                      placeholder="Items description"
-                      placeholderTextColor={colors.textMuted}
                     />
                   </View>
 
-                  {/* Category Picker */}
-                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>CATEGORY</Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.categoryPickerRow}
-                  >
-                    {ALL_CATEGORIES.map((cat) => {
-                      const meta = CATEGORIES[cat];
-                      const isSelected = category === cat;
-                      return (
-                        <TouchableOpacity
-                          key={cat}
-                          onPress={() => setCategory(cat)}
-                          style={[
-                            styles.catChip,
-                            {
-                              backgroundColor: isSelected ? meta.bgColor : colors.inputBg,
-                              borderColor: isSelected ? meta.color : colors.inputBorder,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.catChipText,
-                              {
-                                color: isSelected ? meta.color : colors.textSecondary,
-                                fontWeight: isSelected ? '700' : '500',
-                              },
-                            ]}
-                          >
-                            {meta.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-
-                  {/* Payment Method */}
-                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                    PAYMENT METHOD
-                  </Text>
-                  <View style={styles.paymentMethodRow}>
-                    {PAYMENT_METHODS.map((pm) => {
-                      const isSelected = paymentMethod === pm.id;
-                      return (
-                        <TouchableOpacity
-                          key={pm.id}
-                          onPress={() => setPaymentMethod(pm.id)}
-                          style={[
-                            styles.pmChip,
-                            {
-                              backgroundColor: isSelected ? colors.primaryLight : colors.inputBg,
-                              borderColor: isSelected ? colors.primary : colors.inputBorder,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.pmChipText,
-                              {
-                                color: isSelected ? colors.primary : colors.textSecondary,
-                                fontWeight: isSelected ? '700' : '500',
-                              },
-                            ]}
-                          >
-                            {pm.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
+                  {/* Merchant */}
+                  <View style={styles.fieldGroup}>
+                    <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Merchant / Store</Text>
+                    <TextInput
+                      style={[
+                        styles.formInput,
+                        {
+                          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                          color: colors.text,
+                          borderColor: colors.cardBorder,
+                        },
+                      ]}
+                      value={merchant}
+                      onChangeText={setMerchant}
+                    />
                   </View>
 
-                  {/* Confirm & Save Button */}
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    onPress={handleConfirmSave}
-                    disabled={isSaving}
-                    style={[styles.confirmSaveBtn, { backgroundColor: colors.primary }]}
-                  >
-                    {isSaving ? (
-                      <ActivityIndicator color="#FFFFFF" />
-                    ) : (
-                      <>
-                        <Check size={18} color="#FFFFFF" />
-                        <Text style={styles.confirmSaveBtnText}>Save Scanned Expense</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
+                  {/* Category */}
+                  <View style={styles.fieldGroup}>
+                    <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Category</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catScroll}>
+                      {ALL_CATEGORIES.map((cat) => {
+                        const isSel = category === cat;
+                        return (
+                          <TouchableOpacity
+                            key={cat}
+                            onPress={() => setCategory(cat)}
+                            style={[
+                              styles.catPickChip,
+                              {
+                                backgroundColor: isSel ? colors.primary : (isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'),
+                                borderColor: isSel ? colors.primary : colors.cardBorder,
+                              },
+                            ]}
+                          >
+                            <Text style={[styles.catPickText, { color: isSel ? colors.primaryText : colors.text }]}>
+                              {cat}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+
+                  {/* Payment Method */}
+                  <View style={styles.fieldGroup}>
+                    <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Payment Method</Text>
+                    <View style={styles.methodRow}>
+                      {PAYMENT_METHODS.map((m) => {
+                        const isSel = paymentMethod === m.id;
+                        return (
+                          <TouchableOpacity
+                            key={m.id}
+                            onPress={() => setPaymentMethod(m.id)}
+                            style={[
+                              styles.methodPickChip,
+                              {
+                                backgroundColor: isSel ? colors.primary : (isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'),
+                                borderColor: isSel ? colors.primary : colors.cardBorder,
+                              },
+                            ]}
+                          >
+                            <Text style={[styles.methodPickText, { color: isSel ? colors.primaryText : colors.text }]}>
+                              {m.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
                 </View>
               )}
             </View>
           )}
         </ScrollView>
+
+        {imageUri && !isScanning && (
+          <View
+            style={[
+              styles.bottomBar,
+              {
+                backgroundColor: colors.card,
+                borderTopColor: colors.cardBorder,
+              },
+            ]}
+          >
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={handleConfirmSave}
+              disabled={isSaving}
+              style={[styles.submitBtn, { backgroundColor: colors.primary }]}
+            >
+              {isSaving ? (
+                <ActivityIndicator color={colors.primaryText} size="small" />
+              ) : (
+                <Text style={[styles.submitBtnText, { color: colors.primaryText }]}>
+                  Save Scanned Bill ({currency}{amount || '0'})
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -507,31 +455,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'android' ? 24 : 12,
-    paddingBottom: 14,
+    paddingVertical: 12,
     borderBottomWidth: 1,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
     letterSpacing: -0.3,
-  },
-  headerSub: {
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: 1,
   },
   closeBtn: {
     padding: 6,
@@ -540,225 +470,189 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     paddingBottom: 40,
   },
   pickerSection: {
-    alignItems: 'center',
-    paddingTop: 10,
+    gap: 12,
   },
-  scanIllustration: {
-    borderRadius: 22,
+  uploadBox: {
+    borderRadius: 16,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    width: '100%',
-    marginBottom: 18,
-    position: 'relative',
-    overflow: 'hidden',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  scanBeam: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 2,
+  uploadIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
   },
-  illustrationTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    marginTop: 12,
-    marginBottom: 6,
+  uploadTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    marginBottom: 4,
   },
-  illustrationSub: {
-    fontSize: 12,
+  uploadSub: {
+    fontSize: 12.5,
     textAlign: 'center',
+    maxWidth: 280,
     lineHeight: 18,
+    marginBottom: 18,
   },
   buttonRow: {
     flexDirection: 'row',
     gap: 10,
     width: '100%',
-    marginBottom: 16,
   },
-  actionButton: {
+  primaryUploadBtn: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-    paddingVertical: 13,
-    gap: 8,
-  },
-  cameraButton: {},
-  cameraButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  galleryButton: {
-    borderWidth: 1,
-  },
-  galleryButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  sampleTryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 6,
-  },
-  sampleTryText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  resultSection: {
-    gap: 14,
-  },
-  imagePreviewContainer: {
-    height: 190,
-    borderRadius: 18,
-    overflow: 'hidden',
-    position: 'relative',
-    borderWidth: 1,
-  },
-  receiptImage: {
-    width: '100%',
-    height: '100%',
-  },
-  scanningOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    height: 42,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scanningText: {
-    color: '#FFFFFF',
+  primaryUploadText: {
     fontSize: 13,
     fontWeight: '700',
-    marginTop: 10,
   },
-  retakeBtn: {
-    position: 'absolute',
-    bottom: 10,
-    right: 10,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  retakeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  formCard: {
-    borderRadius: 22,
-    padding: 18,
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  aiBadgeBanner: {
+  secondaryUploadBtn: {
+    flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    height: 42,
     borderRadius: 10,
     borderWidth: 1,
-    marginBottom: 12,
-    gap: 6,
-  },
-  aiBadgeBannerText: {
-    color: '#10B981',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  inputLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1,
-    marginBottom: 6,
-    marginTop: 10,
-  },
-  inputRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 44,
-    borderWidth: 1,
+    justifyContent: 'center',
   },
-  currencyPrefix: {
-    fontSize: 18,
-    fontWeight: '800',
-    marginRight: 6,
-  },
-  amountInput: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  textInput: {
-    flex: 1,
+  secondaryUploadText: {
     fontSize: 13,
     fontWeight: '600',
   },
-  categoryPickerRow: {
-    gap: 8,
-    paddingVertical: 4,
-  },
-  catChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  catChipText: {
-    fontSize: 12,
-  },
-  paymentMethodRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
-  },
-  pmChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  pmChipText: {
-    fontSize: 12,
-  },
-  confirmSaveBtn: {
+  demoSampleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
-    paddingVertical: 14,
-    marginTop: 20,
-    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
   },
-  confirmSaveBtnText: {
-    color: '#FFFFFF',
+  demoSampleText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  card: {
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+  },
+  reuploadText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  receiptImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 10,
+  },
+  scanningOverlay: {
+    position: 'absolute',
+    top: 36,
+    left: 14,
+    right: 14,
+    bottom: 14,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  scanningText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  fieldGroup: {
+    marginBottom: 12,
+  },
+  fieldLabel: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  formInput: {
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 13,
+  },
+  catScroll: {
+    gap: 6,
+    paddingVertical: 2,
+  },
+  catPickChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  catPickText: {
+    fontSize: 11.5,
+    fontWeight: '500',
+  },
+  methodRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  methodPickChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  methodPickText: {
+    fontSize: 11.5,
+  },
+  bottomBar: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+  },
+  submitBtn: {
+    borderRadius: 10,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitBtnText: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
   },
 });

@@ -15,19 +15,15 @@ import { useRouter } from 'expo-router';
 import { useExpenseStore } from '../../store/useExpenseStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useAppTheme } from '../../hooks/use-theme';
-import { ALL_INCOME_SOURCES, INCOME_SOURCES, PAYMENT_METHODS } from '../../constants/categories';
+import { ALL_INCOME_SOURCES, PAYMENT_METHODS } from '../../constants/categories';
 import { IncomeSource, PaymentMethod } from '../../types';
 import DatePickerModal from '../../components/common/date-picker-modal';
 import {
-  Plus,
   X,
-  Check,
   Building2,
   Calendar,
   FileText,
   Trash2,
-  ArrowDownLeft,
-  ChevronDown,
 } from '../../components/ui/icons';
 
 export default function AddIncomeModal() {
@@ -94,7 +90,7 @@ export default function AddIncomeModal() {
 
       setDraftIncome(null);
       router.back();
-    } catch (err) {
+    } catch {
       if (Platform.OS === 'web') {
         window.alert('Failed to save income. Please try again.');
       } else {
@@ -139,28 +135,11 @@ export default function AddIncomeModal() {
       <View style={styles.container}>
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
-          <View style={styles.headerLeft}>
-            <View
-              style={[
-                styles.headerIconCircle,
-                {
-                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                },
-              ]}
-            >
-              <ArrowDownLeft size={20} color="#10B981" />
-            </View>
-            <View>
-              <Text style={[styles.headerTitle, { color: colors.text }]}>
-                {isEditing ? 'Edit Income' : 'Add Money / Income'}
-              </Text>
-              <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
-                Credit to available balance & budget
-              </Text>
-            </View>
-          </View>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            {isEditing ? 'Edit Income' : 'Add Income'}
+          </Text>
           <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
-            <X size={20} color={colors.textSecondary} />
+            <X size={18} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -169,10 +148,10 @@ export default function AddIncomeModal() {
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
         >
-          {/* Main Hero Amount Input */}
+          {/* Main Hero Amount Card */}
           <View
             style={[
-              styles.amountCard,
+              styles.card,
               {
                 backgroundColor: colors.card,
                 borderColor: colors.cardBorder,
@@ -180,9 +159,9 @@ export default function AddIncomeModal() {
               },
             ]}
           >
-            <Text style={[styles.amountLabel, { color: '#10B981' }]}>AMOUNT RECEIVED (+)</Text>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>INCOME AMOUNT</Text>
             <View style={styles.amountInputRow}>
-              <Text style={[styles.amountCurrency, { color: '#10B981' }]}>{currency}</Text>
+              <Text style={[styles.amountCurrency, { color: colors.success }]}>+{currency}</Text>
               <TextInput
                 style={[styles.amountInput, { color: colors.text }]}
                 keyboardType="decimal-pad"
@@ -195,59 +174,10 @@ export default function AddIncomeModal() {
             </View>
           </View>
 
-          {/* Income Source Selector */}
+          {/* Description */}
           <View
             style={[
-              styles.fieldCard,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.cardBorder,
-                shadowColor: colors.cardShadow,
-              },
-            ]}
-          >
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>INCOME SOURCE</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.sourcePickerRow}
-            >
-              {ALL_INCOME_SOURCES.map((src) => {
-                const meta = INCOME_SOURCES[src];
-                const isSelected = source === src;
-                return (
-                  <TouchableOpacity
-                    key={src}
-                    onPress={() => setSource(src)}
-                    style={[
-                      styles.sourceChip,
-                      {
-                        backgroundColor: isSelected ? meta.bgColor : colors.inputBg,
-                        borderColor: isSelected ? meta.color : colors.inputBorder,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.sourceChipText,
-                        {
-                          color: isSelected ? meta.color : colors.textSecondary,
-                          fontWeight: isSelected ? '700' : '500',
-                        },
-                      ]}
-                    >
-                      {meta.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          {/* Description / Note */}
-          <View
-            style={[
-              styles.fieldCard,
+              styles.card,
               {
                 backgroundColor: colors.card,
                 borderColor: colors.cardBorder,
@@ -260,15 +190,15 @@ export default function AddIncomeModal() {
               style={[
                 styles.inputRow,
                 {
-                  backgroundColor: colors.inputBg,
-                  borderColor: colors.inputBorder,
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                  borderColor: colors.cardBorder,
                 },
               ]}
             >
-              <FileText size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
+              <FileText size={15} color={colors.textMuted} style={{ marginRight: 8 }} />
               <TextInput
                 style={[styles.textInput, { color: colors.text }]}
-                placeholder="e.g. October monthly salary, Web design project..."
+                placeholder="e.g. Monthly Salary, Freelance project, Dividend..."
                 placeholderTextColor={colors.textMuted}
                 value={description}
                 onChangeText={setDescription}
@@ -276,10 +206,10 @@ export default function AddIncomeModal() {
             </View>
           </View>
 
-          {/* Payer / Client / Company */}
+          {/* Payer / Client */}
           <View
             style={[
-              styles.fieldCard,
+              styles.card,
               {
                 backgroundColor: colors.card,
                 borderColor: colors.cardBorder,
@@ -288,21 +218,21 @@ export default function AddIncomeModal() {
             ]}
           >
             <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-              PAYER / CLIENT / COMPANY (OPTIONAL)
+              PAYER / EMPLOYER / SOURCE (OPTIONAL)
             </Text>
             <View
               style={[
                 styles.inputRow,
                 {
-                  backgroundColor: colors.inputBg,
-                  borderColor: colors.inputBorder,
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                  borderColor: colors.cardBorder,
                 },
               ]}
             >
-              <Building2 size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
+              <Building2 size={15} color={colors.textMuted} style={{ marginRight: 8 }} />
               <TextInput
                 style={[styles.textInput, { color: colors.text }]}
-                placeholder="e.g. Google LLC, Acme Corp, Upwork..."
+                placeholder="e.g. Google, Client, Bank, Self..."
                 placeholderTextColor={colors.textMuted}
                 value={payer}
                 onChangeText={setPayer}
@@ -310,10 +240,10 @@ export default function AddIncomeModal() {
             </View>
           </View>
 
-          {/* Date Selector */}
+          {/* Income Source Chips */}
           <View
             style={[
-              styles.fieldCard,
+              styles.card,
               {
                 backgroundColor: colors.card,
                 borderColor: colors.cardBorder,
@@ -321,25 +251,66 @@ export default function AddIncomeModal() {
               },
             ]}
           >
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>CREDIT DATE</Text>
-            <View style={styles.dateSelectorRow}>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>INCOME STREAM</Text>
+            <View style={styles.sourceGrid}>
+              {ALL_INCOME_SOURCES.map((src) => {
+                const isSelected = source === src;
+                return (
+                  <TouchableOpacity
+                    key={src}
+                    onPress={() => setSource(src)}
+                    style={[
+                      styles.sourceChip,
+                      {
+                        backgroundColor: isSelected ? colors.primary : (isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'),
+                        borderColor: isSelected ? colors.primary : colors.cardBorder,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.sourceChipText,
+                        {
+                          color: isSelected ? colors.primaryText : colors.text,
+                          fontWeight: isSelected ? '700' : '500',
+                        },
+                      ]}
+                    >
+                      {src}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Date Picker */}
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.cardBorder,
+                shadowColor: colors.cardShadow,
+              },
+            ]}
+          >
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>DATE</Text>
+            <View style={styles.dateRow}>
               <TouchableOpacity
                 onPress={() => setDateOffset(0)}
                 style={[
-                  styles.dateChip,
+                  styles.quickDateBtn,
                   {
-                    backgroundColor: isToday ? 'rgba(16, 185, 129, 0.15)' : colors.inputBg,
-                    borderColor: isToday ? '#10B981' : colors.inputBorder,
+                    backgroundColor: isToday ? colors.primary : (isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'),
+                    borderColor: isToday ? colors.primary : colors.cardBorder,
                   },
                 ]}
               >
                 <Text
                   style={[
-                    styles.dateChipText,
-                    {
-                      color: isToday ? '#10B981' : colors.textSecondary,
-                      fontWeight: isToday ? '700' : '500',
-                    },
+                    styles.quickDateText,
+                    { color: isToday ? colors.primaryText : colors.text },
                   ]}
                 >
                   Today
@@ -349,20 +320,17 @@ export default function AddIncomeModal() {
               <TouchableOpacity
                 onPress={() => setDateOffset(1)}
                 style={[
-                  styles.dateChip,
+                  styles.quickDateBtn,
                   {
-                    backgroundColor: isYesterday ? 'rgba(16, 185, 129, 0.15)' : colors.inputBg,
-                    borderColor: isYesterday ? '#10B981' : colors.inputBorder,
+                    backgroundColor: isYesterday ? colors.primary : (isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'),
+                    borderColor: isYesterday ? colors.primary : colors.cardBorder,
                   },
                 ]}
               >
                 <Text
                   style={[
-                    styles.dateChipText,
-                    {
-                      color: isYesterday ? '#10B981' : colors.textSecondary,
-                      fontWeight: isYesterday ? '700' : '500',
-                    },
+                    styles.quickDateText,
+                    { color: isYesterday ? colors.primaryText : colors.text },
                   ]}
                 >
                   Yesterday
@@ -370,27 +338,32 @@ export default function AddIncomeModal() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                activeOpacity={0.7}
                 onPress={() => setIsDatePickerVisible(true)}
                 style={[
-                  styles.dateDisplayBadge,
+                  styles.customDateBtn,
                   {
-                    backgroundColor: colors.inputBg,
-                    borderColor: colors.inputBorder,
+                    backgroundColor: !isToday && !isYesterday ? colors.primary : (isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'),
+                    borderColor: !isToday && !isYesterday ? colors.primary : colors.cardBorder,
                   },
                 ]}
               >
-                <Calendar size={14} color="#10B981" style={{ marginRight: 6 }} />
-                <Text style={[styles.dateDisplayText, { color: colors.text }]}>{date}</Text>
-                <ChevronDown size={14} color={colors.textSecondary} style={{ marginLeft: 4 }} />
+                <Calendar size={13} color={!isToday && !isYesterday ? colors.primaryText : colors.text} style={{ marginRight: 4 }} />
+                <Text
+                  style={[
+                    styles.quickDateText,
+                    { color: !isToday && !isYesterday ? colors.primaryText : colors.text },
+                  ]}
+                >
+                  {date}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Payment Method Selector */}
+          {/* Payment Method */}
           <View
             style={[
-              styles.fieldCard,
+              styles.card,
               {
                 backgroundColor: colors.card,
                 borderColor: colors.cardBorder,
@@ -398,83 +371,89 @@ export default function AddIncomeModal() {
               },
             ]}
           >
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>DEPOSIT ACCOUNT / METHOD</Text>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>PAYMENT METHOD</Text>
             <View style={styles.paymentMethodRow}>
-              {PAYMENT_METHODS.map((pm) => {
-                const isSelected = paymentMethod === pm.id;
+              {PAYMENT_METHODS.map((method) => {
+                const isSelected = paymentMethod === method.id;
                 return (
                   <TouchableOpacity
-                    key={pm.id}
-                    onPress={() => setPaymentMethod(pm.id)}
+                    key={method.id}
+                    onPress={() => setPaymentMethod(method.id)}
                     style={[
-                      styles.pmChip,
+                      styles.methodChip,
                       {
-                        backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.15)' : colors.inputBg,
-                        borderColor: isSelected ? '#10B981' : colors.inputBorder,
+                        backgroundColor: isSelected ? colors.primary : (isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'),
+                        borderColor: isSelected ? colors.primary : colors.cardBorder,
                       },
                     ]}
                   >
                     <Text
                       style={[
-                        styles.pmChipText,
+                        styles.methodChipText,
                         {
-                          color: isSelected ? '#10B981' : colors.textSecondary,
+                          color: isSelected ? colors.primaryText : colors.text,
                           fontWeight: isSelected ? '700' : '500',
                         },
                       ]}
                     >
-                      {pm.label}
+                      {method.label}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
           </View>
+        </ScrollView>
 
-          {/* Save Button */}
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={handleSaveIncome}
-            disabled={isSaving}
-            style={[styles.saveButton, { backgroundColor: '#10B981' }]}
-          >
-            {isSaving ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <>
-                <Check size={20} color="#FFFFFF" />
-                <Text style={[styles.saveButtonText, { color: '#FFFFFF' }]}>
-                  {isEditing ? 'Update Income' : 'Add to Available Balance'}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-
-          {/* Delete Option if editing */}
+        {/* Bottom CTA Submit */}
+        <View
+          style={[
+            styles.bottomBar,
+            {
+              backgroundColor: colors.card,
+              borderTopColor: colors.cardBorder,
+            },
+          ]}
+        >
           {isEditing && (
             <TouchableOpacity
-              activeOpacity={0.8}
               onPress={handleDelete}
               style={[
-                styles.deleteButton,
+                styles.deleteBtn,
                 {
-                  backgroundColor: colors.dangerBg,
+                  backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2',
                   borderColor: colors.dangerBorder,
                 },
               ]}
             >
-              <Trash2 size={18} color={colors.danger} />
-              <Text style={[styles.deleteButtonText, { color: colors.danger }]}>Delete Income</Text>
+              <Trash2 size={16} color={colors.danger} />
             </TouchableOpacity>
           )}
-        </ScrollView>
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={handleSaveIncome}
+            disabled={isSaving}
+            style={[styles.submitBtn, { backgroundColor: colors.primary }]}
+          >
+            {isSaving ? (
+              <ActivityIndicator color={colors.primaryText} size="small" />
+            ) : (
+              <Text style={[styles.submitBtnText, { color: colors.primaryText }]}>
+                {isEditing ? 'Update Income' : 'Save Income'}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
 
         <DatePickerModal
           visible={isDatePickerVisible}
-          onClose={() => setIsDatePickerVisible(false)}
           selectedDate={date}
-          onSelectDate={(newDate) => setDate(newDate)}
-          title="Income Date"
+          onSelectDate={(selected: string) => {
+            setDate(selected);
+            setIsDatePickerVisible(false);
+          }}
+          onClose={() => setIsDatePickerVisible(false)}
         />
       </View>
     </SafeAreaView>
@@ -493,29 +472,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'android' ? 24 : 12,
-    paddingBottom: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  headerSub: {
-    fontSize: 11,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
   closeBtn: {
     padding: 6,
@@ -524,152 +487,130 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 10,
     paddingBottom: 40,
-    gap: 16,
   },
-  amountCard: {
-    borderRadius: 24,
-    padding: 22,
-    alignItems: 'center',
+  card: {
+    borderRadius: 14,
+    padding: 14,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  amountLabel: {
+  inputLabel: {
     fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.2,
+    fontWeight: '700',
+    letterSpacing: 0.4,
     marginBottom: 8,
   },
   amountInputRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'baseline',
   },
   amountCurrency: {
-    fontSize: 34,
-    fontWeight: '900',
-    marginRight: 6,
+    fontSize: 24,
+    fontWeight: '700',
+    marginRight: 4,
   },
   amountInput: {
-    fontSize: 42,
-    fontWeight: '900',
-    minWidth: 100,
-    textAlign: 'center',
-  },
-  fieldCard: {
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  inputLabel: {
-    fontSize: 11,
+    flex: 1,
+    fontSize: 32,
     fontWeight: '800',
-    letterSpacing: 1,
-    marginBottom: 8,
+    letterSpacing: -0.5,
+    padding: 0,
   },
-  sourcePickerRow: {
-    gap: 8,
-    paddingVertical: 4,
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    height: 40,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 13,
+  },
+  sourceGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
   },
   sourceChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
     borderWidth: 1,
   },
   sourceChipText: {
     fontSize: 12,
   },
-  inputRow: {
+  dateRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 48,
-    borderWidth: 1,
+    gap: 6,
   },
-  textInput: {
+  quickDateBtn: {
     flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  dateSelectorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dateChip: {
-    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
-  },
-  dateChipText: {
-    fontSize: 12,
-  },
-  dateDisplayBadge: {
-    flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 'auto',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
-    borderWidth: 1,
+    justifyContent: 'center',
   },
-  dateDisplayText: {
+  customDateBtn: {
+    flex: 1.2,
+    flexDirection: 'row',
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickDateText: {
     fontSize: 12,
     fontWeight: '600',
   },
   paymentMethodRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
   },
-  pmChip: {
+  methodChip: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
     borderWidth: 1,
   },
-  pmChipText: {
+  methodChipText: {
     fontSize: 12,
   },
-  saveButton: {
+  bottomBar: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 16,
-    paddingVertical: 16,
-    marginTop: 8,
-    gap: 8,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    gap: 10,
   },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 16,
-    paddingVertical: 14,
-    marginTop: 8,
-    gap: 8,
+  deleteBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  deleteButtonText: {
+  submitBtn: {
+    flex: 1,
+    borderRadius: 10,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitBtnText: {
     fontSize: 14,
     fontWeight: '700',
   },

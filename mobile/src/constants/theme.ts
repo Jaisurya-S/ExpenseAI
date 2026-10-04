@@ -6,62 +6,62 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#0F172A',
-    textSecondary: '#475569',
-    textMuted: '#94A3B8',
-    background: '#F8FAFC',
+    text: '#09090B', // zinc-950
+    textSecondary: '#52525B', // zinc-600
+    textMuted: '#71717A', // zinc-500
+    background: '#FAFAFA', // zinc-50
     backgroundElement: '#FFFFFF',
-    backgroundSelected: '#F1F5F9',
+    backgroundSelected: '#F4F4F5', // zinc-100
     card: '#FFFFFF',
-    cardBorder: '#E2E8F0',
+    cardBorder: '#E4E4E7', // zinc-200
     cardElevated: '#FFFFFF',
-    inputBg: '#F8FAFC',
-    inputBorder: '#CBD5E1',
-    primary: '#1D4ED8', // Executive Deep Royal Blue
-    primaryLight: 'rgba(29, 78, 216, 0.08)',
-    primaryText: '#FFFFFF',
-    accent: '#0284C7',
+    inputBg: '#FFFFFF',
+    inputBorder: '#E4E4E7', // zinc-200
+    primary: '#18181B', // zinc-900 - signature high-contrast shadcn primary
+    primaryLight: '#F4F4F5',
+    primaryText: '#FAFAFA',
+    accent: '#09090B',
     accentPurple: '#7C3AED',
     accentYellow: '#D97706',
-    danger: '#DC2626',
-    dangerBg: 'rgba(220, 38, 38, 0.08)',
-    dangerBorder: 'rgba(220, 38, 38, 0.2)',
-    success: '#059669',
-    successBg: 'rgba(5, 150, 105, 0.08)',
+    danger: '#EF4444',
+    dangerBg: '#FEF2F2',
+    dangerBorder: '#FECACA',
+    success: '#10B981',
+    successBg: '#ECFDF5',
     tabBarBg: '#FFFFFF',
-    tabBarBorder: '#E2E8F0',
-    tabBarActive: '#1D4ED8',
-    tabBarInactive: '#94A3B8',
-    cardShadow: 'rgba(15, 23, 42, 0.06)',
+    tabBarBorder: '#E4E4E7',
+    tabBarActive: '#09090B',
+    tabBarInactive: '#A1A1AA',
+    cardShadow: 'rgba(0, 0, 0, 0.03)',
   },
   dark: {
-    text: '#F8FAFC',
-    textSecondary: '#94A3B8',
-    textMuted: '#64748B',
-    background: '#090D16', // Deep Executive Midnight
-    backgroundElement: '#111726',
-    backgroundSelected: '#1A2338',
-    card: '#0F1626',
-    cardBorder: '#1E293B',
-    cardElevated: '#141D30',
-    inputBg: '#131C2E',
-    inputBorder: '#23314D',
-    primary: '#3B82F6', // Vibrant Precision Blue
-    primaryLight: 'rgba(59, 130, 246, 0.12)',
-    primaryText: '#FFFFFF',
-    accent: '#38BDF8',
+    text: '#FAFAFA', // zinc-50
+    textSecondary: '#A1A1AA', // zinc-400
+    textMuted: '#71717A', // zinc-500
+    background: '#09090B', // zinc-950 - signature pure shadcn dark background
+    backgroundElement: '#18181B', // zinc-900
+    backgroundSelected: '#27272A', // zinc-800
+    card: '#121215', // subtle elevated zinc card
+    cardBorder: '#27272A', // zinc-800
+    cardElevated: '#18181B',
+    inputBg: '#121215',
+    inputBorder: '#27272A',
+    primary: '#FAFAFA', // zinc-50 - signature high-contrast shadcn primary in dark
+    primaryLight: '#27272A',
+    primaryText: '#09090B',
+    accent: '#FAFAFA',
     accentPurple: '#A78BFA',
     accentYellow: '#FBBF24',
-    danger: '#EF4444',
-    dangerBg: 'rgba(239, 68, 68, 0.12)',
-    dangerBorder: 'rgba(239, 68, 68, 0.25)',
-    success: '#10B981',
-    successBg: 'rgba(16, 185, 129, 0.12)',
-    tabBarBg: '#0B101D',
-    tabBarBorder: '#162035',
-    tabBarActive: '#3B82F6',
-    tabBarInactive: '#64748B',
-    cardShadow: 'rgba(0, 0, 0, 0.4)',
+    danger: '#F87171',
+    dangerBg: '#450A0A',
+    dangerBorder: '#7F1D1D',
+    success: '#34D399',
+    successBg: '#064E3B',
+    tabBarBg: '#09090B',
+    tabBarBorder: '#27272A',
+    tabBarActive: '#FAFAFA',
+    tabBarInactive: '#71717A',
+    cardShadow: 'rgba(0, 0, 0, 0.5)',
   },
 } as const;
 

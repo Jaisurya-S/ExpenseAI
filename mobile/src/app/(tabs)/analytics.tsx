@@ -34,20 +34,21 @@ export default function AnalyticsScreen() {
   const [period, setPeriod] = useState<'month' | 'all'>('month');
 
   const currentMonthKey = new Date().toISOString().slice(0, 7);
+  const monthName = new Date().toLocaleString('default', { month: 'short' });
 
   const filteredExpenses = useMemo(() => {
     if (period === 'month') {
       return expenses.filter((e) => e.date?.startsWith(currentMonthKey));
     }
     return expenses;
-  }, [expenses, period]);
+  }, [expenses, period, currentMonthKey]);
 
   const filteredIncomes = useMemo(() => {
     if (period === 'month') {
       return incomes.filter((i) => i.date?.startsWith(currentMonthKey));
     }
     return incomes;
-  }, [incomes, period]);
+  }, [incomes, period, currentMonthKey]);
 
   const totalSpent = filteredExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const totalIncome = filteredIncomes.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
@@ -63,15 +64,6 @@ export default function AnalyticsScreen() {
     return totals;
   }, [filteredExpenses]);
 
-  // Income source breakdown
-  const incomeSourceTotals = useMemo(() => {
-    const totals: Partial<Record<IncomeSource, number>> = {};
-    filteredIncomes.forEach((i) => {
-      totals[i.source] = (totals[i.source] || 0) + (Number(i.amount) || 0);
-    });
-    return totals;
-  }, [filteredIncomes]);
-
   // Top category
   const topCategory = useMemo(() => {
     let topCat: ExpenseCategory = 'Other';
@@ -84,30 +76,6 @@ export default function AnalyticsScreen() {
     });
     return { name: topCat, amount: max };
   }, [categoryTotals]);
-
-  // Daily trend last 7 days
-  const dailyBarData = useMemo(() => {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const result = [];
-    const now = new Date();
-
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
-      const dayLabel = days[d.getDay()];
-
-      const dayTotal = expenses
-        .filter((e) => e.date === dateStr)
-        .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-
-      result.push({
-        label: dayLabel,
-        amount: dayTotal,
-      });
-    }
-    return result;
-  }, [expenses]);
 
   // Top merchants
   const topMerchants = useMemo(() => {
@@ -137,18 +105,18 @@ export default function AnalyticsScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>Financial Analytics</Text>
-            <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
-              Income, expenses, savings rate & AI cashflow analysis
+            <Text style={[styles.headerTitle, { color: colors.text }]}>Analytics</Text>
+            <Text style={[styles.headerSub, { color: colors.textMuted }]}>
+              Cash flow, spending habits & trends
             </Text>
           </View>
 
-          {/* Period toggle */}
+          {/* Period toggle in Shadcn segmented control style */}
           <View
             style={[
-              styles.periodToggle,
+              styles.segmentedControl,
               {
-                backgroundColor: colors.card,
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
                 borderColor: colors.cardBorder,
               },
             ]}
@@ -156,35 +124,44 @@ export default function AnalyticsScreen() {
             <TouchableOpacity
               onPress={() => setPeriod('month')}
               style={[
-                styles.toggleBtn,
-                period === 'month' && { backgroundColor: colors.primary },
+                styles.segmentBtn,
+                period === 'month' && {
+                  backgroundColor: colors.card,
+                  borderColor: colors.cardBorder,
+                  shadowColor: colors.cardShadow,
+                },
               ]}
             >
               <Text
                 style={[
-                  styles.toggleText,
+                  styles.segmentText,
                   {
-                    color: period === 'month' ? colors.primaryText : colors.textSecondary,
-                    fontWeight: period === 'month' ? '800' : '600',
+                    color: period === 'month' ? colors.text : colors.textMuted,
+                    fontWeight: period === 'month' ? '700' : '500',
                   },
                 ]}
               >
-                This Month
+                {monthName}
               </Text>
             </TouchableOpacity>
+
             <TouchableOpacity
               onPress={() => setPeriod('all')}
               style={[
-                styles.toggleBtn,
-                period === 'all' && { backgroundColor: colors.primary },
+                styles.segmentBtn,
+                period === 'all' && {
+                  backgroundColor: colors.card,
+                  borderColor: colors.cardBorder,
+                  shadowColor: colors.cardShadow,
+                },
               ]}
             >
               <Text
                 style={[
-                  styles.toggleText,
+                  styles.segmentText,
                   {
-                    color: period === 'all' ? colors.primaryText : colors.textSecondary,
-                    fontWeight: period === 'all' ? '800' : '600',
+                    color: period === 'all' ? colors.text : colors.textMuted,
+                    fontWeight: period === 'all' ? '700' : '500',
                   },
                 ]}
               >
@@ -194,10 +171,10 @@ export default function AnalyticsScreen() {
           </View>
         </View>
 
-        {/* Income vs Expense Comparative Card */}
+        {/* Comparative Overview Card */}
         <View
           style={[
-            styles.comparisonCard,
+            styles.card,
             {
               backgroundColor: colors.card,
               borderColor: colors.cardBorder,
@@ -208,44 +185,34 @@ export default function AnalyticsScreen() {
           <View style={styles.compTopRow}>
             <View>
               <Text style={[styles.compLabel, { color: colors.textSecondary }]}>
-                CASHFLOW & SAVINGS RATE
+                Net Cash Flow
               </Text>
               <Text
                 style={[
                   styles.compNetValue,
-                  { color: netSavings >= 0 ? '#10B981' : colors.danger },
+                  { color: netSavings >= 0 ? colors.success : colors.danger },
                 ]}
               >
                 {netSavings >= 0 ? '+' : ''}
                 {currency}
-                {netSavings.toLocaleString()}
+                {netSavings.toLocaleString('en-IN')}
               </Text>
             </View>
 
             <View
               style={[
-                styles.savingsRateBadge,
+                styles.savingsBadge,
                 {
-                  backgroundColor:
-                    savingsRate >= 20
-                      ? 'rgba(16, 185, 129, 0.15)'
-                      : savingsRate >= 0
-                      ? 'rgba(245, 158, 11, 0.15)'
-                      : colors.dangerBg,
-                  borderColor:
-                    savingsRate >= 20
-                      ? '#10B981'
-                      : savingsRate >= 0
-                      ? '#F59E0B'
-                      : colors.dangerBorder,
+                  backgroundColor: netSavings >= 0 ? colors.successBg : colors.dangerBg,
+                  borderColor: netSavings >= 0 ? 'rgba(16, 185, 129, 0.2)' : colors.dangerBorder,
                 },
               ]}
             >
-              <PiggyBank size={14} color={savingsRate >= 0 ? '#10B981' : colors.danger} />
+              <PiggyBank size={13} color={netSavings >= 0 ? colors.success : colors.danger} />
               <Text
                 style={[
-                  styles.savingsRateText,
-                  { color: savingsRate >= 0 ? '#10B981' : colors.danger },
+                  styles.savingsBadgeText,
+                  { color: netSavings >= 0 ? colors.success : colors.danger },
                 ]}
               >
                 {savingsRate}% Saved
@@ -253,14 +220,14 @@ export default function AnalyticsScreen() {
             </View>
           </View>
 
-          <View style={styles.compColumnsRow}>
+          <View style={[styles.compGrid, { borderTopColor: colors.cardBorder }]}>
             <View style={styles.compCol}>
               <View style={styles.compColHeader}>
-                <ArrowDownLeft size={14} color="#10B981" />
-                <Text style={[styles.compColLabel, { color: colors.textSecondary }]}>Total Income</Text>
+                <ArrowDownLeft size={13} color={colors.success} />
+                <Text style={[styles.compColLabel, { color: colors.textSecondary }]}>Inflow</Text>
               </View>
-              <Text style={[styles.compColVal, { color: '#10B981' }]}>
-                +{currency}{totalIncome.toLocaleString()}
+              <Text style={[styles.compColVal, { color: colors.success }]}>
+                +{currency}{totalIncome.toLocaleString('en-IN')}
               </Text>
             </View>
 
@@ -268,21 +235,21 @@ export default function AnalyticsScreen() {
 
             <View style={styles.compCol}>
               <View style={styles.compColHeader}>
-                <ArrowUpRight size={14} color={colors.danger} />
-                <Text style={[styles.compColLabel, { color: colors.textSecondary }]}>Total Spent</Text>
+                <ArrowUpRight size={13} color={colors.danger} />
+                <Text style={[styles.compColLabel, { color: colors.textSecondary }]}>Outflow</Text>
               </View>
-              <Text style={[styles.compColVal, { color: colors.danger }]}>
-                -{currency}{totalSpent.toLocaleString()}
+              <Text style={[styles.compColVal, { color: colors.text }]}>
+                -{currency}{totalSpent.toLocaleString('en-IN')}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* 4 Stat Metric Cards Grid */}
+        {/* 4 Stat Metrics Grid */}
         <View style={styles.statsGrid}>
           <View
             style={[
-              styles.statCard,
+              styles.statTile,
               {
                 backgroundColor: colors.card,
                 borderColor: colors.cardBorder,
@@ -290,24 +257,26 @@ export default function AnalyticsScreen() {
               },
             ]}
           >
-            <View
-              style={[
-                styles.statIconBadge,
-                { backgroundColor: colors.dangerBg },
-              ]}
-            >
-              <DollarSign size={18} color={colors.danger} />
+            <View style={styles.statHeader}>
+              <View
+                style={[
+                  styles.statIconBox,
+                  { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)', borderColor: colors.cardBorder },
+                ]}
+              >
+                <DollarSign size={14} color={colors.text} />
+              </View>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Daily Average</Text>
             </View>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total Spend</Text>
-            <Text style={[styles.statNumber, { color: colors.text }]}>
-              {currency}
-              {totalSpent.toLocaleString()}
+            <Text style={[styles.statVal, { color: colors.text }]}>
+              {currency}{avgDaily.toLocaleString('en-IN')}
             </Text>
+            <Text style={[styles.statSub, { color: colors.textMuted }]}>per day</Text>
           </View>
 
           <View
             style={[
-              styles.statCard,
+              styles.statTile,
               {
                 backgroundColor: colors.card,
                 borderColor: colors.cardBorder,
@@ -315,142 +284,30 @@ export default function AnalyticsScreen() {
               },
             ]}
           >
-            <View
-              style={[
-                styles.statIconBadge,
-                { backgroundColor: colors.primaryLight },
-              ]}
-            >
-              <TrendingUp size={18} color={colors.primary} />
+            <View style={styles.statHeader}>
+              <View
+                style={[
+                  styles.statIconBox,
+                  { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)', borderColor: colors.cardBorder },
+                ]}
+              >
+                <Award size={14} color={colors.text} />
+              </View>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Top Category</Text>
             </View>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Daily Avg</Text>
-            <Text style={[styles.statNumber, { color: colors.text }]}>
-              {currency}
-              {avgDaily.toLocaleString()}
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.statCard,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.cardBorder,
-                shadowColor: colors.cardShadow,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.statIconBadge,
-                {
-                  backgroundColor: isDark ? 'rgba(155, 93, 229, 0.15)' : 'rgba(124, 58, 237, 0.1)',
-                },
-              ]}
-            >
-              <Award size={18} color={colors.accentPurple} />
-            </View>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Top Category</Text>
-            <Text style={[styles.statNumber, { color: colors.text }]} numberOfLines={1}>
+            <Text style={[styles.statVal, { color: colors.text }]} numberOfLines={1}>
               {topCategory.name}
             </Text>
-          </View>
-
-          <View
-            style={[
-              styles.statCard,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.cardBorder,
-                shadowColor: colors.cardShadow,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.statIconBadge,
-                {
-                  backgroundColor: isDark ? 'rgba(0, 187, 249, 0.15)' : 'rgba(2, 132, 199, 0.1)',
-                },
-              ]}
-            >
-              <CreditCard size={18} color={colors.accent} />
-            </View>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Transactions</Text>
-            <Text style={[styles.statNumber, { color: colors.text }]}>
-              {filteredExpenses.length + filteredIncomes.length}
+            <Text style={[styles.statSub, { color: colors.textMuted }]}>
+              {currency}{topCategory.amount.toLocaleString('en-IN')}
             </Text>
           </View>
         </View>
 
-        {/* Donut Category Chart */}
-        <ExpensePieChart
-          categoryTotals={categoryTotals}
-          totalSpent={totalSpent}
-        />
-
-        {/* 7-Day Trend Bar Chart */}
-        <SpendingBarChart
-          data={dailyBarData}
-          title="LAST 7 DAYS SPENDING FLOW"
-        />
-
-        {/* Income Sources Leaderboard if any */}
-        {Object.keys(incomeSourceTotals).length > 0 && (
-          <View
-            style={[
-              styles.merchantsCard,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.cardBorder,
-                shadowColor: colors.cardShadow,
-              },
-            ]}
-          >
-            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-              INCOME BREAKDOWN BY SOURCE
-            </Text>
-            {Object.entries(incomeSourceTotals).map(([src, val], idx) => {
-              const meta = INCOME_SOURCES[src as keyof typeof INCOME_SOURCES] || INCOME_SOURCES.Other;
-              return (
-                <View
-                  key={src}
-                  style={[
-                    styles.merchantRow,
-                    { borderBottomColor: colors.cardBorder },
-                  ]}
-                >
-                  <View style={styles.merchantLeft}>
-                    <View
-                      style={[
-                        styles.rankBadge,
-                        { backgroundColor: meta.bgColor },
-                      ]}
-                    >
-                      <Text style={[styles.rankText, { color: meta.color }]}>
-                        #{idx + 1}
-                      </Text>
-                    </View>
-                    <View>
-                      <Text style={[styles.merchantName, { color: colors.text }]} numberOfLines={1}>
-                        {meta.label}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={[styles.merchantAmount, { color: '#10B981' }]}>
-                    +{currency}
-                    {val?.toLocaleString()}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        )}
-
-        {/* Top Merchants Leaderboard */}
+        {/* Category Breakdown Progress Bars */}
         <View
           style={[
-            styles.merchantsCard,
+            styles.card,
             {
               backgroundColor: colors.card,
               borderColor: colors.cardBorder,
@@ -458,76 +315,91 @@ export default function AnalyticsScreen() {
             },
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-            TOP SPENDING MERCHANTS
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Spending by Category
           </Text>
-          {topMerchants.length === 0 ? (
-            <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-              No merchant data recorded yet.
+
+          {Object.keys(categoryTotals).length === 0 ? (
+            <Text style={[styles.emptyCategoryText, { color: colors.textMuted }]}>
+              No expenses recorded for this period.
             </Text>
           ) : (
-            topMerchants.map((item, idx) => (
-              <View
-                key={idx}
-                style={[
-                  styles.merchantRow,
-                  { borderBottomColor: colors.cardBorder },
-                ]}
-              >
-                <View style={styles.merchantLeft}>
-                  <View
-                    style={[
-                      styles.rankBadge,
-                      { backgroundColor: colors.inputBg },
-                    ]}
-                  >
-                    <Text style={[styles.rankText, { color: colors.textSecondary }]}>
-                      #{idx + 1}
-                    </Text>
+            Object.entries(categoryTotals)
+              .sort((a, b) => (b[1] || 0) - (a[1] || 0))
+              .map(([cat, amount]) => {
+                const percent = totalSpent > 0 ? Math.round(((amount || 0) / totalSpent) * 100) : 0;
+                return (
+                  <View key={cat} style={styles.catRow}>
+                    <View style={styles.catMetaRow}>
+                      <Text style={[styles.catName, { color: colors.text }]}>{cat}</Text>
+                      <Text style={[styles.catAmount, { color: colors.text }]}>
+                        {currency}{(amount || 0).toLocaleString('en-IN')}{' '}
+                        <Text style={{ color: colors.textMuted, fontSize: 11 }}>({percent}%)</Text>
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.catTrack,
+                        { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.catBar,
+                          {
+                            width: `${percent}%`,
+                            backgroundColor: colors.primary,
+                          },
+                        ]}
+                      />
+                    </View>
                   </View>
-                  <View>
-                    <Text style={[styles.merchantName, { color: colors.text }]} numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                    <Text style={[styles.merchantCount, { color: colors.textSecondary }]}>
-                      {item.count} transactions
-                    </Text>
-                  </View>
-                </View>
-                <Text style={[styles.merchantAmount, { color: colors.danger }]}>
-                  {currency}
-                  {item.amount.toLocaleString()}
-                </Text>
-              </View>
-            ))
+                );
+              })
           )}
         </View>
 
-        {/* AI Financial Health Score Card */}
-        <View
-          style={[
-            styles.aiHealthCard,
-            {
-              backgroundColor: isDark ? '#151F28' : 'rgba(13, 148, 136, 0.08)',
-              borderColor: colors.primary,
-            },
-          ]}
-        >
-          <View style={styles.aiHealthHeader}>
-            <Sparkles size={18} color={colors.primary} />
-            <Text style={[styles.aiHealthTitle, { color: colors.primary }]}>
-              AI FINANCIAL HEALTH SCORE
+        {/* Top Merchants List */}
+        {topMerchants.length > 0 && (
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.cardBorder,
+                shadowColor: colors.cardShadow,
+              },
+            ]}
+          >
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Frequent Payees
             </Text>
+            {topMerchants.map((merchant, idx) => (
+              <View
+                key={merchant.name}
+                style={[
+                  styles.merchantRow,
+                  idx < topMerchants.length - 1 && {
+                    borderBottomColor: colors.cardBorder,
+                    borderBottomWidth: 1,
+                  },
+                ]}
+              >
+                <View>
+                  <Text style={[styles.merchantName, { color: colors.text }]}>
+                    {merchant.name}
+                  </Text>
+                  <Text style={[styles.merchantCount, { color: colors.textMuted }]}>
+                    {merchant.count} transaction{merchant.count > 1 ? 's' : ''}
+                  </Text>
+                </View>
+                <Text style={[styles.merchantAmount, { color: colors.text }]}>
+                  {currency}{merchant.amount.toLocaleString('en-IN')}
+                </Text>
+              </View>
+            ))}
           </View>
-          <View style={styles.scoreRow}>
-            <Text style={[styles.scoreNumber, { color: colors.text }]}>88</Text>
-            <Text style={[styles.scoreMax, { color: colors.primary }]}>/100 (Strong Position)</Text>
-          </View>
-          <Text style={[styles.scoreDesc, { color: colors.textSecondary }]}>
-            Your cash flow is healthy with positive net balance. Maintaining disciplined budget limits
-            across top categories provides strong runway and predictability.
-          </Text>
-        </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -542,11 +414,14 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'android' ? 24 : 12,
     paddingBottom: 40,
+    paddingTop: Platform.OS === 'android' ? 24 : 12,
   },
   header: {
-    marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
   },
   headerTitle: {
     fontSize: 22,
@@ -557,215 +432,185 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     marginTop: 2,
-    marginBottom: 12,
   },
-  periodToggle: {
+  segmentedControl: {
     flexDirection: 'row',
-    borderRadius: 12,
+    borderRadius: 10,
     padding: 3,
     borderWidth: 1,
-    alignSelf: 'flex-start',
   },
-  toggleBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 9,
+  segmentBtn: {
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
-  toggleText: {
+  segmentText: {
     fontSize: 12,
   },
-  comparisonCard: {
-    borderRadius: 24,
-    padding: 18,
-    marginBottom: 18,
+  card: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   compTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 14,
   },
   compLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1,
+    fontSize: 12,
+    fontWeight: '500',
     marginBottom: 2,
   },
   compNetValue: {
     fontSize: 26,
-    fontWeight: '900',
-  },
-  savingsRateBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-    borderWidth: 1,
-    gap: 4,
-  },
-  savingsRateText: {
-    fontSize: 12,
     fontWeight: '800',
+    letterSpacing: -0.6,
   },
-  compColumnsRow: {
+  savingsBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  savingsBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  compGrid: {
+    flexDirection: 'row',
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(150, 150, 150, 0.1)',
   },
   compCol: {
     flex: 1,
+    alignItems: 'center',
   },
   compColHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   compColLabel: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   compColVal: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
   compDivider: {
     width: 1,
-    height: 32,
-    marginHorizontal: 12,
+    height: '100%',
   },
   statsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 10,
-    marginBottom: 20,
+    marginBottom: 12,
   },
-  statCard: {
+  statTile: {
     flex: 1,
-    minWidth: '47%',
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: 14,
+    padding: 12,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  statIconBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+  statHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
     marginBottom: 8,
   },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  statNumber: {
-    fontSize: 16,
-    fontWeight: '800',
-    marginTop: 2,
-  },
-  merchantsCard: {
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 20,
+  statIconBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 3,
+  },
+  statLabel: {
+    fontSize: 11.5,
+    fontWeight: '500',
+  },
+  statVal: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    marginBottom: 1,
+  },
+  statSub: {
+    fontSize: 11,
+    fontWeight: '400',
   },
   sectionTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    marginBottom: 14,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    marginBottom: 12,
   },
-  emptyText: {
-    fontSize: 13,
-    paddingVertical: 10,
+  emptyCategoryText: {
+    fontSize: 12,
+    paddingVertical: 8,
+  },
+  catRow: {
+    marginBottom: 10,
+  },
+  catMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  catName: {
+    fontSize: 12.5,
+    fontWeight: '500',
+  },
+  catAmount: {
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  catTrack: {
+    height: 5,
+    borderRadius: 2.5,
+    overflow: 'hidden',
+  },
+  catBar: {
+    height: '100%',
+    borderRadius: 2.5,
   },
   merchantRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 10,
-    borderBottomWidth: 1,
-  },
-  merchantLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  rankBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  rankText: {
-    fontSize: 11,
-    fontWeight: '700',
   },
   merchantName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
+    marginBottom: 1,
   },
   merchantCount: {
     fontSize: 11,
   },
   merchantAmount: {
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  aiHealthCard: {
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-    marginBottom: 20,
-  },
-  aiHealthHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
-  },
-  aiHealthTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  scoreRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginBottom: 8,
-  },
-  scoreNumber: {
-    fontSize: 32,
-    fontWeight: '900',
-  },
-  scoreMax: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '700',
-    marginLeft: 6,
-  },
-  scoreDesc: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '500',
   },
 });
-

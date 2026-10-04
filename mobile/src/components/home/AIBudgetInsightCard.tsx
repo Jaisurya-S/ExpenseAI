@@ -28,8 +28,29 @@ export const AIBudgetInsightCard: React.FC<AIBudgetInsightCardProps> = ({
     >
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <Sparkles size={15} color={colors.primary} />
-          <Text style={[styles.title, { color: colors.text }]}>SPENDING ADVISOR</Text>
+          <View
+            style={[
+              styles.sparkleIconBox,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+                borderColor: colors.cardBorder,
+              },
+            ]}
+          >
+            <Sparkles size={13} color={colors.text} />
+          </View>
+          <Text style={[styles.title, { color: colors.text }]}>Smart Advisor</Text>
+        </View>
+        <View
+          style={[
+            styles.aiPill,
+            {
+              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+              borderColor: colors.cardBorder,
+            },
+          ]}
+        >
+          <Text style={[styles.aiPillText, { color: colors.textSecondary }]}>AI</Text>
         </View>
       </View>
 
@@ -38,7 +59,7 @@ export const AIBudgetInsightCard: React.FC<AIBudgetInsightCardProps> = ({
           const cleanText = item.replace(/\*\*/g, '');
           return (
             <View key={index} style={styles.insightItem}>
-              <View style={[styles.bullet, { backgroundColor: colors.primary }]} />
+              <View style={[styles.bullet, { backgroundColor: colors.textSecondary }]} />
               <Text style={[styles.insightText, { color: colors.textSecondary }]}>{cleanText}</Text>
             </View>
           );
@@ -50,13 +71,13 @@ export const AIBudgetInsightCard: React.FC<AIBudgetInsightCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 18,
+    borderRadius: 16,
     padding: 16,
     marginHorizontal: 16,
-    marginBottom: 20,
+    marginBottom: 16,
     borderWidth: 1,
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.03,
     shadowRadius: 4,
     elevation: 1,
   },
@@ -64,17 +85,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
+  },
+  sparkleIconBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
   title: {
-    fontSize: 11,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: -0.1,
+  },
+  aiPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  aiPillText: {
+    fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 0.8,
   },
   insightsList: {
     gap: 8,
@@ -85,13 +124,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   bullet: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    marginTop: 6,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 7,
   },
   insightText: {
-    fontSize: 13,
+    fontSize: 12.5,
     lineHeight: 18,
     flex: 1,
     fontWeight: '400',

@@ -19,7 +19,7 @@ import { QuickActionGrid } from '../../components/home/QuickActionGrid';
 import { AIBudgetInsightCard } from '../../components/home/AIBudgetInsightCard';
 import { TransactionCard } from '../../components/common/TransactionCard';
 import { generateSpendingInsights } from '../../services/aiService';
-import { Bell, Sparkles, ChevronRight, PlusCircle, ArrowDownLeft, ArrowUpRight, TrendingUp } from '../../components/ui/icons';
+import { Bell, Sparkles, ChevronRight, ArrowDownLeft, ArrowUpRight, TrendingUp } from '../../components/ui/icons';
 import { useAppTheme } from '../../hooks/use-theme';
 import { Expense, Income, UnifiedTransaction } from '../../types';
 
@@ -40,10 +40,8 @@ export default function HomeScreen() {
   const [aiInsights, setAiInsights] = useState<string[]>([]);
 
   const currency = profile.currency || '₹';
-
-  // Dates & Month filters
   const currentMonthKey = new Date().toISOString().slice(0, 7);
-  const monthName = new Date().toLocaleString('default', { month: 'long' });
+  const monthName = new Date().toLocaleString('default', { month: 'short' });
 
   // Calculations
   const totalIncomeAllTime = useMemo(
@@ -55,7 +53,7 @@ export default function HomeScreen() {
     [expenses]
   );
 
-  // Available Balance = Total Inflows - Total Outflows
+  // Available Balance
   const availableBalance = totalIncomeAllTime - totalExpenseAllTime;
 
   // Monthly stats
@@ -127,7 +125,7 @@ export default function HomeScreen() {
     return list;
   }, [expenses, incomes]);
 
-  const recentTransactions = unifiedTransactions.slice(0, 5);
+  const recentTransactions = unifiedTransactions.slice(0, 6);
 
   const handleEditTransaction = (tx: UnifiedTransaction) => {
     if (tx.type === 'income' && tx.rawIncome) {
@@ -185,18 +183,17 @@ export default function HomeScreen() {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.text} />
         }
       >
-        {/* Top Header Bar with Brand Logo & Profile */}
+        {/* Top Header Bar with Brand Logo & User Profile */}
         <View style={styles.topBar}>
           <View
             style={[
               styles.headerLogoContainer,
               {
-                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.95)' : '#FFFFFF',
-                borderColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.08)',
-                shadowColor: colors.cardShadow,
+                backgroundColor: isDark ? '#FFFFFF' : '#FFFFFF',
+                borderColor: colors.cardBorder,
               },
             ]}
           >
@@ -207,36 +204,34 @@ export default function HomeScreen() {
             />
           </View>
 
-          <View style={styles.topBarActions}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => router.push('/(tabs)/profile')}
-              style={styles.userProfileBtn}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push('/(tabs)/profile')}
+            style={styles.userProfileBtn}
+          >
+            <View style={styles.userInfoTextCol}>
+              <Text style={[styles.greetingText, { color: colors.textMuted }]}>Account</Text>
+              <Text style={[styles.userNameText, { color: colors.text }]} numberOfLines={1}>
+                {displayName}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.avatarCircle,
+                {
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+                  borderColor: colors.cardBorder,
+                },
+              ]}
             >
-              <View
-                style={[
-                  styles.avatarCircle,
-                  {
-                    backgroundColor: colors.primaryLight,
-                    borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(29, 78, 216, 0.2)',
-                  },
-                ]}
-              >
-                <Text style={[styles.avatarInitial, { color: colors.primary }]}>
-                  {displayName.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-              <View style={styles.userInfoTextCol}>
-                <Text style={[styles.greetingText, { color: colors.textSecondary }]}>Welcome,</Text>
-                <Text style={[styles.userNameText, { color: colors.text }]} numberOfLines={1}>
-                  {displayName}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
+              <Text style={[styles.avatarInitial, { color: colors.text }]}>
+                {displayName.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
-        {/* 1. Hero Balance & Income/Expense Card */}
+        {/* 1. Hero Balance Card */}
         <HeroBalanceCard
           availableBalance={availableBalance}
           totalIncome={totalIncomeAllTime}
@@ -249,7 +244,7 @@ export default function HomeScreen() {
           onSetBudgetPress={() => router.push('/(tabs)/budgets')}
         />
 
-        {/* 2. Quick Action Buttons */}
+        {/* 2. Quick Action Grid */}
         <QuickActionGrid
           onScanPress={() => router.push('/modal/scan')}
           onVoicePress={() => router.push('/modal/voice')}
@@ -257,21 +252,21 @@ export default function HomeScreen() {
           onAiChatPress={() => router.push('/modal/ai-chat')}
         />
 
-        {/* 3. Monthly Cash Flow Bar */}
+        {/* 3. Monthly Cash Flow Summary Bar */}
         {(monthIncomeTotal > 0 || monthExpenseTotal > 0) && (
           <View
             style={[
               styles.cashflowCard,
               {
                 backgroundColor: colors.card,
-                borderColor: isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.05)',
-                shadowColor: isDark ? '#000' : 'rgba(15, 23, 42, 0.04)',
+                borderColor: colors.cardBorder,
+                shadowColor: colors.cardShadow,
               },
             ]}
           >
             <View style={styles.cashflowHeader}>
               <View style={styles.cashflowTitleRow}>
-                <TrendingUp size={15} color={monthNetSavings >= 0 ? '#10B981' : colors.danger} />
+                <TrendingUp size={14} color={colors.text} />
                 <Text style={[styles.cashflowTitle, { color: colors.text }]}>
                   {monthName} Cash Flow
                 </Text>
@@ -281,14 +276,16 @@ export default function HomeScreen() {
                   styles.savingsBadge,
                   {
                     backgroundColor:
-                      monthNetSavings >= 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.1)',
+                      monthNetSavings >= 0 ? colors.successBg : colors.dangerBg,
+                    borderColor:
+                      monthNetSavings >= 0 ? 'rgba(16, 185, 129, 0.2)' : colors.dangerBorder,
                   },
                 ]}
               >
                 <Text
                   style={[
                     styles.savingsBadgeText,
-                    { color: monthNetSavings >= 0 ? '#10B981' : colors.danger },
+                    { color: monthNetSavings >= 0 ? colors.success : colors.danger },
                   ]}
                 >
                   Net: {monthNetSavings >= 0 ? '+' : ''}{currency}{monthNetSavings.toLocaleString('en-IN')}
@@ -296,13 +293,18 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            <View style={styles.ratioBarContainer}>
+            <View
+              style={[
+                styles.ratioBarContainer,
+                { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' },
+              ]}
+            >
               <View
                 style={[
                   styles.ratioBarIncome,
                   {
                     flex: Math.max(1, monthIncomeTotal),
-                    backgroundColor: '#10B981',
+                    backgroundColor: colors.success,
                   },
                 ]}
               />
@@ -311,7 +313,7 @@ export default function HomeScreen() {
                   styles.ratioBarExpense,
                   {
                     flex: Math.max(1, monthExpenseTotal),
-                    backgroundColor: colors.danger,
+                    backgroundColor: colors.text,
                   },
                 ]}
               />
@@ -319,25 +321,25 @@ export default function HomeScreen() {
 
             <View style={styles.ratioLegendRow}>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
+                <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
                 <Text style={[styles.legendText, { color: colors.textSecondary }]}>
-                  +{currency}{monthIncomeTotal.toLocaleString()} in
+                  +{currency}{monthIncomeTotal.toLocaleString('en-IN')} In
                 </Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: colors.danger }]} />
+                <View style={[styles.legendDot, { backgroundColor: colors.text }]} />
                 <Text style={[styles.legendText, { color: colors.textSecondary }]}>
-                  -{currency}{monthExpenseTotal.toLocaleString()} out
+                  -{currency}{monthExpenseTotal.toLocaleString('en-IN')} Out
                 </Text>
               </View>
             </View>
           </View>
         )}
 
-        {/* 4. AI Insights Card */}
+        {/* 4. AI Advisor Insight */}
         <AIBudgetInsightCard insights={aiInsights} />
 
-        {/* 5. Recent Activity */}
+        {/* 5. Recent Activity List */}
         <View style={styles.recentSection}>
           <View style={styles.recentHeader}>
             <Text style={[styles.recentTitle, { color: colors.text }]}>Recent Activity</Text>
@@ -345,8 +347,8 @@ export default function HomeScreen() {
               onPress={() => router.push('/(tabs)/expenses')}
               style={styles.viewAllBtn}
             >
-              <Text style={[styles.viewAllText, { color: colors.primary }]}>See all</Text>
-              <ChevronRight size={14} color={colors.primary} />
+              <Text style={[styles.viewAllText, { color: colors.textSecondary }]}>View all</Text>
+              <ChevronRight size={13} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -356,12 +358,12 @@ export default function HomeScreen() {
                 styles.emptyRecent,
                 {
                   backgroundColor: colors.card,
-                  borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)',
+                  borderColor: colors.cardBorder,
                 },
               ]}
             >
               <Text style={[styles.emptyRecentText, { color: colors.textSecondary }]}>
-                No recent transactions
+                No transactions recorded yet
               </Text>
             </View>
           ) : (
@@ -379,7 +381,6 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
-
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -400,39 +401,35 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   headerLogoContainer: {
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerLogoImage: {
-    width: 130,
-    height: 34,
+    width: 120,
+    height: 32,
   },
   userInfoTextCol: {
-    maxWidth: 120,
+    alignItems: 'flex-end',
+    marginRight: 8,
   },
   userProfileBtn: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   avatarCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
   },
   avatarInitial: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
   },
   greetingText: {
@@ -440,46 +437,20 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   userNameText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
     letterSpacing: -0.2,
-  },
-  topBarActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerActionBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  bellBadge: {
-    position: 'absolute',
-    top: 9,
-    right: 9,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
   },
   cashflowCard: {
     marginHorizontal: 16,
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 16,
-    marginBottom: 18,
+    marginBottom: 16,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   cashflowHeader: {
     flexDirection: 'row',
@@ -493,32 +464,32 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   cashflowTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: -0.1,
   },
   savingsBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingVertical: 2.5,
+    borderRadius: 999,
+    borderWidth: 1,
   },
   savingsBadgeText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   ratioBarContainer: {
-    height: 8,
+    height: 6,
     flexDirection: 'row',
-    borderRadius: 4,
+    borderRadius: 3,
     overflow: 'hidden',
     marginBottom: 10,
-    gap: 2,
   },
   ratioBarIncome: {
-    borderRadius: 4,
+    height: '100%',
   },
   ratioBarExpense: {
-    borderRadius: 4,
+    height: '100%',
   },
   ratioLegendRow: {
     flexDirection: 'row',
@@ -530,13 +501,13 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   legendText: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 11.5,
+    fontWeight: '500',
   },
   recentSection: {
     marginHorizontal: 16,
@@ -546,17 +517,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   recentTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     letterSpacing: -0.3,
-  },
-  recentSub: {
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: 1,
   },
   viewAllBtn: {
     flexDirection: 'row',
@@ -564,29 +530,17 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   viewAllText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12.5,
+    fontWeight: '500',
   },
   emptyRecent: {
-    borderRadius: 16,
-    padding: 28,
+    borderRadius: 14,
+    padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
   },
   emptyRecentText: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  emptyRecentSub: {
-    fontSize: 12,
-    fontWeight: '400',
-    textAlign: 'center',
-    maxWidth: 280,
+    fontSize: 13,
+    fontWeight: '500',
   },
 });
-

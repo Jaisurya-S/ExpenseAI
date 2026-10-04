@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useAppTheme } from '../../hooks/use-theme';
-import { ArrowDownLeft, ArrowUpRight, TrendingUp } from '../ui/icons';
+import { ArrowDownLeft, ArrowUpRight, Plus, ChevronRight } from '../ui/icons';
 
 interface HeroBalanceCardProps {
   availableBalance: number;
@@ -24,6 +24,7 @@ export const HeroBalanceCard: React.FC<HeroBalanceCardProps> = ({
   monthExpenses,
   monthlyBudget,
   monthName,
+  onAddMoneyPress,
   onSetBudgetPress,
 }) => {
   const { profile } = useAuthStore();
@@ -40,61 +41,81 @@ export const HeroBalanceCard: React.FC<HeroBalanceCardProps> = ({
   return (
     <View
       style={[
-        styles.container,
+        styles.card,
         {
           backgroundColor: colors.card,
-          borderColor: isNegative
-            ? 'rgba(239, 68, 68, 0.4)'
-            : isDark
-            ? 'rgba(255, 255, 255, 0.08)'
-            : 'rgba(0, 0, 0, 0.06)',
-          shadowColor: isDark ? '#000' : 'rgba(15, 23, 42, 0.08)',
+          borderColor: isNegative ? colors.dangerBorder : colors.cardBorder,
+          shadowColor: colors.cardShadow,
         },
       ]}
     >
-      {/* Top Header: Clean Label + Net indicator */}
-      <View style={styles.topHeaderRow}>
-        <Text style={[styles.caption, { color: colors.textSecondary }]}>
-          Available Balance
-        </Text>
-
-        <View
-          style={[
-            styles.statusPill,
-            {
-              backgroundColor: isNegative
-                ? isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2'
-                : isDark ? 'rgba(16, 185, 129, 0.12)' : '#ECFDF5',
-            },
-          ]}
-        >
+      {/* Top Header Row */}
+      <View style={styles.headerRow}>
+        <View style={styles.balanceLabelContainer}>
+          <Text style={[styles.balanceCaption, { color: colors.textSecondary }]}>
+            Total Balance
+          </Text>
           <View
             style={[
-              styles.pulseDot,
-              { backgroundColor: isNegative ? '#EF4444' : '#10B981' },
-            ]}
-          />
-          <Text
-            style={[
-              styles.statusPillText,
-              { color: isNegative ? '#EF4444' : '#10B981' },
+              styles.statusBadge,
+              {
+                backgroundColor: isNegative ? colors.dangerBg : colors.successBg,
+                borderColor: isNegative ? colors.dangerBorder : 'rgba(16, 185, 129, 0.2)',
+              },
             ]}
           >
-            {isNegative ? 'Negative' : 'Active'}
-          </Text>
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: isNegative ? colors.danger : colors.success },
+              ]}
+            />
+            <Text
+              style={[
+                styles.statusBadgeText,
+                { color: isNegative ? colors.danger : colors.success },
+              ]}
+            >
+              {isNegative ? 'Negative' : 'Active'}
+            </Text>
+          </View>
         </View>
+
+        {onAddMoneyPress && (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={onAddMoneyPress}
+            style={[
+              styles.addMoneyBtn,
+              {
+                backgroundColor: colors.primary,
+              },
+            ]}
+          >
+            <Plus size={13} color={colors.primaryText} />
+            <Text style={[styles.addMoneyBtnText, { color: colors.primaryText }]}>
+              Add Money
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Main Display Balance */}
-      <View style={styles.balanceRow}>
+      {/* Main Balance Hero Typography */}
+      <View style={styles.amountContainer}>
+        <Text
+          style={[
+            styles.currencySymbol,
+            { color: isNegative ? colors.danger : colors.textSecondary },
+          ]}
+        >
+          {currency}
+        </Text>
         <Text
           style={[
             styles.balanceAmount,
-            { color: isNegative ? '#EF4444' : colors.text },
+            { color: isNegative ? colors.danger : colors.text },
           ]}
         >
-          {isNegative ? '-' : ''}
-          {currency}
           {Math.abs(availableBalance).toLocaleString('en-IN', {
             minimumFractionDigits: 0,
             maximumFractionDigits: 2,
@@ -102,114 +123,117 @@ export const HeroBalanceCard: React.FC<HeroBalanceCardProps> = ({
         </Text>
       </View>
 
-      {/* 2-Column Clean Inflow & Outflow Metrics */}
-      <View style={styles.breakdownContainer}>
-        {/* Income */}
+      {/* 2-Column High-Contrast Metrics (Income vs Expense) */}
+      <View style={styles.metricsGrid}>
+        {/* Total Inflow */}
         <View
           style={[
-            styles.metricBox,
+            styles.metricTile,
             {
-              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
-              borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)',
+              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.015)',
+              borderColor: colors.cardBorder,
             },
           ]}
         >
-          <View style={styles.metricHeader}>
-            <View style={[styles.smallIconCircle, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-              <ArrowDownLeft size={12} color="#10B981" />
+          <View style={styles.metricTitleRow}>
+            <View style={[styles.metricIconBg, { backgroundColor: colors.successBg }]}>
+              <ArrowDownLeft size={13} color={colors.success} />
             </View>
-            <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Total Income</Text>
+            <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Income</Text>
           </View>
-          <Text style={[styles.metricValue, { color: '#10B981' }]}>
+          <Text style={[styles.metricValue, { color: colors.success }]}>
             +{currency}{totalIncome.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </Text>
           <Text style={[styles.metricSub, { color: colors.textMuted }]}>
-            +{currency}{monthIncome.toLocaleString('en-IN', { maximumFractionDigits: 0 })} this month
+            +{currency}{monthIncome.toLocaleString('en-IN', { maximumFractionDigits: 0 })} this mo.
           </Text>
         </View>
 
-        {/* Expenses */}
+        {/* Total Outflow */}
         <View
           style={[
-            styles.metricBox,
+            styles.metricTile,
             {
-              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
-              borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)',
+              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.015)',
+              borderColor: colors.cardBorder,
             },
           ]}
         >
-          <View style={styles.metricHeader}>
-            <View style={[styles.smallIconCircle, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
-              <ArrowUpRight size={12} color="#EF4444" />
+          <View style={styles.metricTitleRow}>
+            <View style={[styles.metricIconBg, { backgroundColor: colors.dangerBg }]}>
+              <ArrowUpRight size={13} color={colors.danger} />
             </View>
-            <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Total Expenses</Text>
+            <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Expenses</Text>
           </View>
           <Text style={[styles.metricValue, { color: colors.text }]}>
             -{currency}{totalExpenses.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </Text>
           <Text style={[styles.metricSub, { color: colors.textMuted }]}>
-            -{currency}{monthExpenses.toLocaleString('en-IN', { maximumFractionDigits: 0 })} this month
+            -{currency}{monthExpenses.toLocaleString('en-IN', { maximumFractionDigits: 0 })} this mo.
           </Text>
         </View>
       </View>
 
-      {/* Monthly Budget Progress Bar */}
+      {/* Clean Budget Progress Strip */}
       {hasBudget ? (
-        <View
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={onSetBudgetPress}
           style={[
-            styles.budgetProgressBox,
+            styles.budgetStrip,
             {
-              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
-              borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.015)',
+              borderColor: colors.cardBorder,
             },
           ]}
         >
-          <View style={styles.budgetTopRow}>
-            <Text style={[styles.budgetLabel, { color: colors.textSecondary }]}>
+          <View style={styles.budgetStripHeader}>
+            <Text style={[styles.budgetStripTitle, { color: colors.textSecondary }]}>
               {monthName} Budget
             </Text>
-            <Text style={[styles.budgetVal, { color: colors.textSecondary }]}>
-              {currency}{monthExpenses.toLocaleString('en-IN')} / {currency}{monthlyBudget.toLocaleString('en-IN')} ({budgetPercentUsed}%)
+            <Text style={[styles.budgetStripValue, { color: colors.text }]}>
+              {currency}{monthExpenses.toLocaleString('en-IN')} <Text style={{ color: colors.textMuted }}>/ {currency}{monthlyBudget.toLocaleString('en-IN')}</Text>
             </Text>
           </View>
 
           <View
             style={[
-              styles.trackBg,
+              styles.budgetTrack,
               { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' },
             ]}
           >
             <View
               style={[
-                styles.trackFill,
+                styles.budgetBar,
                 {
                   width: `${budgetPercentUsed}%`,
                   backgroundColor:
                     budgetPercentUsed >= 100
-                      ? '#EF4444'
+                      ? colors.danger
                       : budgetPercentUsed >= 80
-                      ? '#F59E0B'
+                      ? colors.accentYellow
                       : colors.primary,
                 },
               ]}
             />
           </View>
-        </View>
+        </TouchableOpacity>
       ) : (
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={onSetBudgetPress}
           style={[
-            styles.noBudgetBox,
+            styles.setBudgetBtn,
             {
-              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
-              borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.015)',
+              borderColor: colors.cardBorder,
             },
           ]}
         >
-          <Text style={[styles.noBudgetText, { color: colors.textSecondary }]}>
-            Set a monthly spending budget →
+          <Text style={[styles.setBudgetText, { color: colors.textSecondary }]}>
+            Set monthly budget limit
           </Text>
+          <ChevronRight size={13} color={colors.textMuted} />
         </TouchableOpacity>
       )}
     </View>
@@ -217,73 +241,98 @@ export const HeroBalanceCard: React.FC<HeroBalanceCardProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    borderRadius: 22,
-    padding: 18,
+  card: {
+    borderRadius: 20,
+    padding: 20,
     marginHorizontal: 16,
-    marginTop: 4,
     marginBottom: 16,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
     elevation: 2,
   },
-  topHeaderRow: {
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 10,
   },
-  caption: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  statusPill: {
+  balanceLabelContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    gap: 8,
+  },
+  balanceCaption: {
+    fontSize: 13,
+    fontWeight: '500',
+    letterSpacing: -0.1,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 999,
+    borderWidth: 1,
     gap: 5,
   },
-  pulseDot: {
+  statusDot: {
     width: 5,
     height: 5,
     borderRadius: 2.5,
   },
-  statusPillText: {
-    fontSize: 11,
+  statusBadgeText: {
+    fontSize: 10.5,
     fontWeight: '600',
   },
-  balanceRow: {
-    marginBottom: 16,
+  addMoneyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  addMoneyBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  amountContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 18,
+  },
+  currencySymbol: {
+    fontSize: 22,
+    fontWeight: '600',
+    marginRight: 3,
   },
   balanceAmount: {
-    fontSize: 34,
+    fontSize: 36,
     fontWeight: '800',
-    letterSpacing: -0.8,
+    letterSpacing: -1,
   },
-  breakdownContainer: {
+  metricsGrid: {
     flexDirection: 'row',
     gap: 10,
     marginBottom: 12,
   },
-  metricBox: {
+  metricTile: {
     flex: 1,
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
   },
-  metricHeader: {
+  metricTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     marginBottom: 6,
   },
-  smallIconCircle: {
-    width: 20,
-    height: 20,
+  metricIconBg: {
+    width: 22,
+    height: 22,
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
@@ -295,48 +344,51 @@ const styles = StyleSheet.create({
   metricValue: {
     fontSize: 16,
     fontWeight: '700',
+    letterSpacing: -0.3,
     marginBottom: 2,
-    letterSpacing: -0.2,
   },
   metricSub: {
     fontSize: 11,
     fontWeight: '400',
   },
-  budgetProgressBox: {
+  budgetStrip: {
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
   },
-  budgetTopRow: {
+  budgetStripHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  budgetLabel: {
+  budgetStripTitle: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  budgetStripValue: {
     fontSize: 12,
     fontWeight: '600',
   },
-  budgetVal: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  trackBg: {
+  budgetTrack: {
     height: 5,
-    borderRadius: 2.5,
+    borderRadius: 3,
     overflow: 'hidden',
   },
-  trackFill: {
+  budgetBar: {
     height: '100%',
-    borderRadius: 2.5,
+    borderRadius: 3,
   },
-  noBudgetBox: {
+  setBudgetBtn: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     borderRadius: 12,
     paddingVertical: 10,
+    paddingHorizontal: 12,
     borderWidth: 1,
   },
-  noBudgetText: {
+  setBudgetText: {
     fontSize: 12,
     fontWeight: '500',
   },

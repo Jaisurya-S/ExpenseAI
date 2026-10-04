@@ -9,7 +9,6 @@ import {
   Alert,
   SafeAreaView,
   Platform,
-  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -73,7 +72,7 @@ export default function ProfileScreen() {
     } else {
       Alert.alert(
         'Export Successful',
-        `Exported ${expenses.length} expenses to CSV format ready for download/share.`
+        `Exported ${expenses.length} expenses to CSV format.`
       );
     }
   };
@@ -101,6 +100,8 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const displayName = profile.displayName || user?.displayName || user?.email?.split('@')[0] || 'User';
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <ScrollView
@@ -110,16 +111,16 @@ export default function ProfileScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>User Profile & Settings</Text>
-          <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
-            Manage appearance, preferences & security
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Settings & Account</Text>
+          <Text style={[styles.headerSub, { color: colors.textMuted }]}>
+            Preferences, appearance and account controls
           </Text>
         </View>
 
-        {/* Profile User Card */}
+        {/* Profile Card */}
         <View
           style={[
-            styles.profileCard,
+            styles.card,
             {
               backgroundColor: colors.card,
               borderColor: colors.cardBorder,
@@ -127,126 +128,91 @@ export default function ProfileScreen() {
             },
           ]}
         >
+          <View style={styles.profileRow}>
+            <View
+              style={[
+                styles.avatarCircle,
+                {
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+                  borderColor: colors.cardBorder,
+                },
+              ]}
+            >
+              <Text style={[styles.avatarInitial, { color: colors.text }]}>
+                {displayName.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+            <View style={styles.profileInfo}>
+              <Text style={[styles.profileName, { color: colors.text }]}>
+                {displayName}
+              </Text>
+              <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>
+                {profile.email || user?.email || 'Guest Account'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Appearance / Theme */}
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.cardBorder,
+              shadowColor: colors.cardShadow,
+            },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Theme & Appearance</Text>
           <View
             style={[
-              styles.avatarCircle,
+              styles.segmentedControl,
               {
-                backgroundColor: colors.inputBg,
-                borderColor: colors.primary,
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+                borderColor: colors.cardBorder,
               },
             ]}
           >
-            <Text style={[styles.avatarInitial, { color: colors.primary }]}>
-              {(profile.displayName || user?.displayName || user?.email || 'U').charAt(0).toUpperCase()}
-            </Text>
-          </View>
-          <View style={styles.profileDetails}>
-            <View style={styles.nameRow}>
-              <Text style={[styles.profileName, { color: colors.text }]}>
-                {profile.displayName || user?.displayName || user?.email?.split('@')[0] || 'User'}
-              </Text>
-            </View>
-            <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>
-              {profile.email || user?.email || 'No email associated'}
-            </Text>
-            <Text style={[styles.profileMeta, { color: colors.textMuted }]}>
-              User ID: {profile.uid ? `${profile.uid.slice(0, 10)}...` : (user?.uid ? `${user.uid.slice(0, 10)}...` : 'Guest')}
-            </Text>
-          </View>
-        </View>
-
-        {/* Theme Preference */}
-        <View
-          style={[
-            styles.sectionCard,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.cardBorder,
-              shadowColor: colors.cardShadow,
-            },
-          ]}
-        >
-          <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>APPEARANCE / THEME</Text>
-            <View
-              style={{
-                backgroundColor: colors.primaryLight,
-                paddingHorizontal: 8,
-                paddingVertical: 3,
-                borderRadius: 8,
-              }}
-            >
-              <Text style={[styles.currentThemeBadge, { color: colors.primary }]}>
-                {isDark ? '🌙 Dark Active' : '☀️ Light Active'}
-              </Text>
-            </View>
-          </View>
-          <Text style={[styles.themeExplainer, { color: colors.textMuted }]}>
-            Select your preferred color scheme. &quot;System&quot; automatically inherits your device OS settings.
-          </Text>
-          <View style={styles.themeRow}>
             {THEME_OPTIONS.map((opt) => {
               const isSelected = themeMode === opt.id;
               const IconComp = opt.icon;
-              const label =
-                opt.id === 'system'
-                  ? `System (${systemScheme === 'dark' ? 'Dark' : 'Light'})`
-                  : opt.label;
               return (
                 <TouchableOpacity
                   key={opt.id}
                   activeOpacity={0.8}
                   onPress={() => setThemeMode(opt.id)}
                   style={[
-                    styles.themeOptionBtn,
-                    {
-                      backgroundColor: isSelected ? colors.primaryLight : colors.inputBg,
-                      borderColor: isSelected ? colors.primary : colors.inputBorder,
+                    styles.segmentBtn,
+                    isSelected && {
+                      backgroundColor: colors.card,
+                      borderColor: colors.cardBorder,
+                      shadowColor: colors.cardShadow,
                     },
                   ]}
                 >
-                  <IconComp
-                    size={16}
-                    color={isSelected ? colors.primary : colors.textSecondary}
-                  />
+                  <IconComp size={13} color={isSelected ? colors.text : colors.textMuted} style={{ marginRight: 5 }} />
                   <Text
                     style={[
-                      styles.themeOptionText,
+                      styles.segmentText,
                       {
-                        color: isSelected ? colors.primary : colors.textSecondary,
+                        color: isSelected ? colors.text : colors.textMuted,
                         fontWeight: isSelected ? '700' : '500',
                       },
                     ]}
                   >
-                    {label}
+                    {opt.label}
                   </Text>
                 </TouchableOpacity>
               );
             })}
           </View>
-          {themeMode === 'system' && (
-            <View
-              style={{
-                marginTop: 10,
-                padding: 10,
-                backgroundColor: colors.inputBg,
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: colors.inputBorder,
-              }}
-            >
-              <Text style={{ fontSize: 11, color: colors.textSecondary, lineHeight: 16 }}>
-                💡 <Text style={{ fontWeight: '700', color: colors.text }}>System Theme</Text> is currently using{' '}
-                <Text style={{ fontWeight: '700', color: colors.primary }}>{systemScheme.toUpperCase()} MODE</Text> because your operating system / browser is set to {systemScheme}. To test or use Light mode, tap the &quot;Light&quot; button above.
-              </Text>
-            </View>
-          )}
         </View>
 
         {/* Currency Preference */}
         <View
           style={[
-            styles.sectionCard,
+            styles.card,
             {
               backgroundColor: colors.card,
               borderColor: colors.cardBorder,
@@ -254,7 +220,7 @@ export default function ProfileScreen() {
             },
           ]}
         >
-          <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>CURRENCY SYMBOL</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Currency Symbol</Text>
           <View style={styles.currencyRow}>
             {CURRENCIES.map((curr) => {
               const isSelected = profile.currency === curr;
@@ -265,8 +231,8 @@ export default function ProfileScreen() {
                   style={[
                     styles.currencyBtn,
                     {
-                      backgroundColor: isSelected ? colors.primaryLight : colors.inputBg,
-                      borderColor: isSelected ? colors.primary : colors.inputBorder,
+                      backgroundColor: isSelected ? colors.primary : (isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'),
+                      borderColor: isSelected ? colors.primary : colors.cardBorder,
                     },
                   ]}
                 >
@@ -274,7 +240,8 @@ export default function ProfileScreen() {
                     style={[
                       styles.currencyText,
                       {
-                        color: isSelected ? colors.primary : colors.textSecondary,
+                        color: isSelected ? colors.primaryText : colors.text,
+                        fontWeight: isSelected ? '700' : '500',
                       },
                     ]}
                   >
@@ -286,10 +253,10 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Preferences Section */}
+        {/* Preferences Toggle Rows */}
         <View
           style={[
-            styles.sectionCard,
+            styles.card,
             {
               backgroundColor: colors.card,
               borderColor: colors.cardBorder,
@@ -297,62 +264,34 @@ export default function ProfileScreen() {
             },
           ]}
         >
-          <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>
-            PREFERENCES & SECURITY
-          </Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Preferences</Text>
 
-          {/* FCM Push Notifications */}
-          <View style={[styles.preferenceRow, { borderBottomColor: colors.inputBorder }]}>
-            <View style={styles.prefLeft}>
-              <View
-                style={[
-                  styles.iconCircle,
-                  {
-                    backgroundColor: colors.inputBg,
-                  },
-                ]}
-              >
-                <Bell size={18} color={colors.accent} />
-              </View>
-              <View>
-                <Text style={[styles.prefTitle, { color: colors.text }]}>Push Notifications</Text>
-                <Text style={[styles.prefSub, { color: colors.textSecondary }]}>
-                  Budget alerts & daily AI summaries
-                </Text>
-              </View>
+          <View style={[styles.settingRow, { borderBottomColor: colors.cardBorder, borderBottomWidth: 1 }]}>
+            <View style={styles.settingTextCol}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>Budget Alerts</Text>
+              <Text style={[styles.settingSub, { color: colors.textMuted }]}>
+                Notify when reaching threshold
+              </Text>
             </View>
             <Switch
-              value={profile.notificationsEnabled}
+              value={profile.notificationsEnabled ?? true}
               onValueChange={toggleNotifications}
-              trackColor={{ false: colors.inputBorder, true: colors.primary }}
+              trackColor={{ false: colors.cardBorder, true: colors.primary }}
               thumbColor="#FFFFFF"
             />
           </View>
 
-          {/* Biometrics */}
-          <View style={styles.preferenceRow}>
-            <View style={styles.prefLeft}>
-              <View
-                style={[
-                  styles.iconCircle,
-                  {
-                    backgroundColor: colors.inputBg,
-                  },
-                ]}
-              >
-                <Shield size={18} color={colors.primary} />
-              </View>
-              <View>
-                <Text style={[styles.prefTitle, { color: colors.text }]}>Biometric Lock</Text>
-                <Text style={[styles.prefSub, { color: colors.textSecondary }]}>
-                  Require FaceID / Fingerprint on open
-                </Text>
-              </View>
+          <View style={styles.settingRow}>
+            <View style={styles.settingTextCol}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>Biometric Lock</Text>
+              <Text style={[styles.settingSub, { color: colors.textMuted }]}>
+                Require Fingerprint / FaceID
+              </Text>
             </View>
             <Switch
-              value={profile.biometricsEnabled}
+              value={profile.biometricsEnabled ?? false}
               onValueChange={toggleBiometrics}
-              trackColor={{ false: colors.inputBorder, true: colors.primary }}
+              trackColor={{ false: colors.cardBorder, true: colors.primary }}
               thumbColor="#FFFFFF"
             />
           </View>
@@ -361,7 +300,7 @@ export default function ProfileScreen() {
         {/* Data & Export */}
         <View
           style={[
-            styles.sectionCard,
+            styles.card,
             {
               backgroundColor: colors.card,
               borderColor: colors.cardBorder,
@@ -369,71 +308,31 @@ export default function ProfileScreen() {
             },
           ]}
         >
-          <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>DATA MANAGEMENT</Text>
-          <TouchableOpacity onPress={handleExportCSV} style={styles.actionRow}>
-            <View style={styles.prefLeft}>
-              <View
-                style={[
-                  styles.iconCircle,
-                  {
-                    backgroundColor: colors.primaryLight,
-                  },
-                ]}
-              >
-                <FileSpreadsheet size={18} color={colors.primary} />
-              </View>
-              <View>
-                <Text style={[styles.prefTitle, { color: colors.text }]}>Export to CSV</Text>
-                <Text style={[styles.prefSub, { color: colors.textSecondary }]}>
-                  Download spreadsheet of all {expenses.length} records
-                </Text>
-              </View>
-            </View>
-            <ChevronRight size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Data & Security</Text>
 
-        {/* Sign Out Button */}
-        <TouchableOpacity
-          onPress={handleLogout}
-          style={[
-            styles.logoutBtn,
-            {
-              backgroundColor: colors.dangerBg,
-              borderColor: colors.dangerBorder,
-            },
-          ]}
-        >
-          <LogOut size={18} color={colors.danger} />
-          <Text style={[styles.logoutBtnText, { color: colors.danger }]}>Sign Out of Account</Text>
-        </TouchableOpacity>
-
-        {/* Footer */}
-        <View style={styles.appFooter}>
-          <View
-            style={[
-              styles.footerLogoContainer,
-              {
-                backgroundColor: isDark ? '#FFFFFF' : 'transparent',
-                borderRadius: 14,
-                paddingHorizontal: isDark ? 12 : 0,
-                paddingVertical: isDark ? 4 : 0,
-                marginBottom: 8,
-              },
-            ]}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={handleExportCSV}
+            style={[styles.actionRow, { borderBottomColor: colors.cardBorder, borderBottomWidth: 1 }]}
           >
-            <Image
-              source={require('../../../assets/images/logo.png')}
-              style={styles.footerLogoImage}
-              resizeMode="contain"
-            />
-          </View>
-          <Text style={[styles.footerVersion, { color: colors.textMuted }]}>
-            ExpenseAi v1.0.0 • Production Ready
-          </Text>
-          <Text style={[styles.footerSub, { color: colors.textMuted }]}>
-            Secured by Firebase & OpenRouter AI
-          </Text>
+            <View style={styles.actionLeft}>
+              <FileSpreadsheet size={16} color={colors.text} />
+              <Text style={[styles.actionLabel, { color: colors.text }]}>Export Records as CSV</Text>
+            </View>
+            <ChevronRight size={14} color={colors.textMuted} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={handleLogout}
+            style={styles.actionRow}
+          >
+            <View style={styles.actionLeft}>
+              <LogOut size={16} color={colors.danger} />
+              <Text style={[styles.actionLabel, { color: colors.danger }]}>Sign Out</Text>
+            </View>
+            <ChevronRight size={14} color={colors.danger} />
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -449,11 +348,11 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'android' ? 24 : 12,
     paddingBottom: 40,
+    paddingTop: Platform.OS === 'android' ? 24 : 12,
   },
   header: {
-    marginBottom: 20,
+    marginBottom: 14,
   },
   headerTitle: {
     fontSize: 22,
@@ -462,196 +361,119 @@ const styles = StyleSheet.create({
   },
   headerSub: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
     marginTop: 2,
   },
-  profileCard: {
+  card: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 24,
-    padding: 18,
-    marginBottom: 16,
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 3,
   },
   avatarCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  avatarInitial: {
-    fontSize: 24,
-    fontWeight: '800',
-  },
-  profileDetails: {
-    flex: 1,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  profileName: {
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  proBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    gap: 3,
-  },
-  proText: {
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  profileEmail: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  profileMeta: {
-    fontSize: 11,
-    marginTop: 4,
-  },
-  sectionCard: {
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  sectionHeader: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-  },
-  currentThemeBadge: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  themeExplainer: {
-    fontSize: 12,
-    fontWeight: '400',
-    marginBottom: 12,
-  },
-  themeRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  themeOptionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderRadius: 14,
-    paddingVertical: 12,
-    borderWidth: 1,
-  },
-  themeOptionText: {
-    fontSize: 13,
-  },
-  currencyRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  currencyBtn: {
-    flex: 1,
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  currencyText: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  preferenceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-  },
-  prefLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  prefTitle: {
-    fontSize: 14,
-    fontWeight: '600',
+  avatarInitial: {
+    fontSize: 18,
+    fontWeight: '700',
   },
-  prefSub: {
-    fontSize: 11,
-    marginTop: 2,
+  profileInfo: {
+    flex: 1,
   },
-  logoutBtn: {
+  profileName: {
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    marginBottom: 2,
+  },
+  profileEmail: {
+    fontSize: 12,
+  },
+  sectionTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    marginBottom: 12,
+  },
+  segmentedControl: {
     flexDirection: 'row',
+    borderRadius: 10,
+    padding: 3,
+    borderWidth: 1,
+  },
+  segmentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    paddingVertical: 7,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 7,
     borderWidth: 1,
-    borderRadius: 16,
-    paddingVertical: 14,
-    marginTop: 8,
-    marginBottom: 24,
+    borderColor: 'transparent',
+  },
+  segmentText: {
+    fontSize: 12,
+  },
+  currencyRow: {
+    flexDirection: 'row',
     gap: 8,
   },
-  logoutBtnText: {
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  appFooter: {
-    alignItems: 'center',
-    paddingBottom: 20,
-  },
-  footerLogoContainer: {
+  currencyBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 8,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  footerLogoImage: {
-    width: 140,
-    height: 44,
+  currencyText: {
+    fontSize: 15,
   },
-  footerVersion: {
-    fontSize: 12,
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  settingTextCol: {
+    flex: 1,
+    marginRight: 12,
+  },
+  settingLabel: {
+    fontSize: 13,
     fontWeight: '600',
+    marginBottom: 2,
   },
-  footerSub: {
-    fontSize: 11,
-    marginTop: 2,
+  settingSub: {
+    fontSize: 11.5,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  actionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  actionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

@@ -15,12 +15,12 @@ import {
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useAppTheme } from '../../hooks/use-theme';
-import { Sparkles, Mail, Lock, LogIn, Zap, Sun, Moon } from '../../components/ui/icons';
+import { Mail, Lock, Zap, Sun, Moon } from '../../components/ui/icons';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { loginWithEmail, loginWithGoogle, loginDemoUser, isLoading } = useAuthStore();
-  const { colors, isDark, themeMode, setThemeMode } = useAppTheme();
+  const { colors, isDark, setThemeMode } = useAppTheme();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,21 +29,18 @@ export default function LoginScreen() {
   const formatAuthError = (err: any) => {
     const code = err?.code || '';
     if (code === 'auth/popup-closed-by-user') {
-      return 'Google sign-in popup was closed.';
+      return 'Sign-in window was closed.';
     }
     if (code === 'auth/user-not-found' || code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
-      return 'Account not found or incorrect password. If you haven\'t created an account in this project, click "Sign Up" below.';
+      return 'Invalid credentials or user does not exist. Tap "Create Account" below.';
     }
     if (code === 'auth/invalid-email') {
-      return 'Please enter a valid email address format.';
+      return 'Please enter a valid email format.';
     }
     if (code === 'auth/network-request-failed') {
-      return 'Network error. Please check your internet connection.';
+      return 'Network connection error.';
     }
-    if (code === 'auth/admin-restricted-operation' || code === 'auth/operation-not-allowed') {
-      return 'Authentication method is restricted in Firebase Console. Please use Instant Demo Access or enable this provider in Firebase Console.';
-    }
-    return err.message || 'Login failed. Please check credentials.';
+    return err.message || 'Authentication failed.';
   };
 
   const handleLogin = async () => {
@@ -56,7 +53,6 @@ export default function LoginScreen() {
       await loginWithEmail(email, password);
       router.replace('/(tabs)');
     } catch (err: any) {
-      console.error('Firebase Login Error:', err);
       setErrorMsg(formatAuthError(err));
     }
   };
@@ -67,7 +63,6 @@ export default function LoginScreen() {
       await loginWithGoogle();
       router.replace('/(tabs)');
     } catch (err: any) {
-      console.error('Firebase Google Error:', err);
       setErrorMsg(formatAuthError(err));
     }
   };
@@ -78,7 +73,6 @@ export default function LoginScreen() {
       await loginDemoUser();
       router.replace('/(tabs)');
     } catch (err: any) {
-      console.error('Demo Login Error:', err);
       setErrorMsg(formatAuthError(err));
     }
   };
@@ -105,34 +99,33 @@ export default function LoginScreen() {
               style={[
                 styles.themeToggleBtn,
                 {
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                  backgroundColor: colors.card,
                   borderColor: colors.cardBorder,
                 },
               ]}
             >
               {isDark ? (
                 <>
-                  <Sun size={15} color="#FEE440" />
-                  <Text style={[styles.themeToggleText, { color: colors.textSecondary }]}>Light</Text>
+                  <Sun size={14} color={colors.text} />
+                  <Text style={[styles.themeToggleText, { color: colors.text }]}>Light</Text>
                 </>
               ) : (
                 <>
-                  <Moon size={15} color="#0D9488" />
-                  <Text style={[styles.themeToggleText, { color: colors.textSecondary }]}>Dark</Text>
+                  <Moon size={14} color={colors.text} />
+                  <Text style={[styles.themeToggleText, { color: colors.text }]}>Dark</Text>
                 </>
               )}
             </TouchableOpacity>
           </View>
 
-          {/* Brand Header */}
+          {/* Brand Logo & Header */}
           <View style={styles.brandSection}>
             <View
               style={[
                 styles.logoCard,
                 {
-                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.96)' : '#FFFFFF',
-                  borderColor: isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.08)',
-                  shadowColor: colors.cardShadow,
+                  backgroundColor: '#FFFFFF',
+                  borderColor: colors.cardBorder,
                 },
               ]}
             >
@@ -142,8 +135,11 @@ export default function LoginScreen() {
                 resizeMode="contain"
               />
             </View>
-            <Text style={[styles.brandSubtitle, { color: colors.textSecondary }]}>
-              Enterprise AI Expense Intelligence & Cashflow Architecture
+            <Text style={[styles.brandTitle, { color: colors.text }]}>
+              Welcome back
+            </Text>
+            <Text style={[styles.brandSubtitle, { color: colors.textMuted }]}>
+              Sign in to manage your budget and finances
             </Text>
           </View>
 
@@ -158,13 +154,6 @@ export default function LoginScreen() {
               },
             ]}
           >
-            <View style={styles.cardHeaderRow}>
-              <Text style={[styles.cardHeader, { color: colors.text }]}>Sign In</Text>
-              <View style={[styles.enterpriseBadge, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
-                <Text style={[styles.enterpriseBadgeText, { color: colors.primary }]}>SECURE</Text>
-              </View>
-            </View>
-
             {errorMsg !== '' && (
               <View
                 style={[
@@ -179,124 +168,125 @@ export default function LoginScreen() {
               </View>
             )}
 
-            {/* Google Sign In Button */}
+            {/* Email Field */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Email</Text>
+              <View
+                style={[
+                  styles.inputRow,
+                  {
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                    borderColor: colors.cardBorder,
+                  },
+                ]}
+              >
+                <Mail size={15} color={colors.textMuted} style={{ marginRight: 8 }} />
+                <TextInput
+                  style={[styles.textInput, { color: colors.text }]}
+                  placeholder="name@example.com"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  value={email}
+                  onChangeText={setEmail}
+                />
+              </View>
+            </View>
+
+            {/* Password Field */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Password</Text>
+              <View
+                style={[
+                  styles.inputRow,
+                  {
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                    borderColor: colors.cardBorder,
+                  },
+                ]}
+              >
+                <Lock size={15} color={colors.textMuted} style={{ marginRight: 8 }} />
+                <TextInput
+                  style={[styles.textInput, { color: colors.text }]}
+                  placeholder="••••••••"
+                  placeholderTextColor={colors.textMuted}
+                  secureTextEntry
+                  value={password}
+                  onChangeText={setPassword}
+                />
+              </View>
+            </View>
+
+            {/* Sign In Primary CTA */}
             <TouchableOpacity
               activeOpacity={0.85}
-              onPress={handleGoogleLogin}
+              onPress={handleLogin}
               disabled={isLoading}
               style={[
-                styles.googleBtn,
-                {
-                  backgroundColor: isDark ? '#FFFFFF' : '#FFFFFF',
-                  borderColor: isDark ? '#E2E8F0' : '#CBD5E1',
-                  borderWidth: 1,
-                },
+                styles.primaryBtn,
+                { backgroundColor: colors.primary },
               ]}
             >
-              <View style={styles.googleIconCircle}>
-                <Text style={styles.googleGLogo}>G</Text>
-              </View>
-              <Text style={styles.googleBtnText}>Continue with Google</Text>
+              {isLoading ? (
+                <ActivityIndicator color={colors.primaryText} size="small" />
+              ) : (
+                <Text style={[styles.primaryBtnText, { color: colors.primaryText }]}>
+                  Sign In
+                </Text>
+              )}
             </TouchableOpacity>
 
             <View style={styles.dividerRow}>
               <View style={[styles.dividerLine, { backgroundColor: colors.cardBorder }]} />
-              <Text style={[styles.dividerText, { color: colors.textMuted }]}>OR WITH WORK EMAIL</Text>
+              <Text style={[styles.dividerText, { color: colors.textMuted }]}>or continue with</Text>
               <View style={[styles.dividerLine, { backgroundColor: colors.cardBorder }]} />
             </View>
 
-            {/* Email Field */}
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>EMAIL ADDRESS</Text>
-            <View
-              style={[
-                styles.inputRow,
-                {
-                  backgroundColor: colors.inputBg,
-                  borderColor: colors.inputBorder,
-                },
-              ]}
-            >
-              <Mail size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
-              <TextInput
-                style={[styles.textInput, { color: colors.text }]}
-                placeholder="alex.morgan@example.com"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={email}
-                onChangeText={setEmail}
-              />
-            </View>
+            {/* Google & Demo Buttons */}
+            <View style={styles.oauthRow}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleGoogleLogin}
+                disabled={isLoading}
+                style={[
+                  styles.secondaryBtn,
+                  {
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                    borderColor: colors.cardBorder,
+                  },
+                ]}
+              >
+                <Text style={[styles.secondaryBtnText, { color: colors.text }]}>Google</Text>
+              </TouchableOpacity>
 
-            {/* Password Field */}
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>PASSWORD</Text>
-            <View
-              style={[
-                styles.inputRow,
-                {
-                  backgroundColor: colors.inputBg,
-                  borderColor: colors.inputBorder,
-                },
-              ]}
-            >
-              <Lock size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
-              <TextInput
-                style={[styles.textInput, { color: colors.text }]}
-                placeholder="••••••••••••"
-                placeholderTextColor={colors.textMuted}
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-              />
-            </View>
-
-            {/* Submit Button */}
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={handleLogin}
-              disabled={isLoading}
-              style={[styles.loginBtn, { backgroundColor: colors.primary }]}
-            >
-              {isLoading ? (
-                <ActivityIndicator color={colors.primaryText} />
-              ) : (
-                <>
-                  <LogIn size={18} color={colors.primaryText} />
-                  <Text style={[styles.loginBtnText, { color: colors.primaryText }]}>
-                    Sign In with Email
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            {/* Instant Demo Access Button */}
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={handleDemoLogin}
-              disabled={isLoading}
-              style={[
-                styles.demoBtn,
-                {
-                  backgroundColor: colors.primaryLight,
-                  borderColor: colors.primary,
-                },
-              ]}
-            >
-              <Zap size={18} color={colors.primary} />
-              <Text style={[styles.demoBtnText, { color: colors.primary }]}>
-                Instant Demo Access (1-Tap)
-              </Text>
-            </TouchableOpacity>
-
-            {/* Register Footer */}
-            <View style={styles.footerRow}>
-              <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-                Don't have an account?{' '}
-              </Text>
-              <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-                <Text style={[styles.registerLink, { color: colors.primary }]}>Sign Up</Text>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleDemoLogin}
+                disabled={isLoading}
+                style={[
+                  styles.secondaryBtn,
+                  {
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                    borderColor: colors.cardBorder,
+                  },
+                ]}
+              >
+                <Zap size={13} color={colors.text} style={{ marginRight: 4 }} />
+                <Text style={[styles.secondaryBtnText, { color: colors.text }]}>Guest Demo</Text>
               </TouchableOpacity>
             </View>
+          </View>
+
+          {/* Footer Link */}
+          <View style={styles.footerRow}>
+            <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+              Don&apos;t have an account?{' '}
+            </Text>
+            <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
+              <Text style={[styles.footerLink, { color: colors.text }]}>
+                Sign Up
+              </Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -312,202 +302,151 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
-    justifyContent: 'center',
-    minHeight: '100%',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'android' ? 24 : 12,
+    paddingBottom: 40,
+    alignItems: 'center',
   },
   topBar: {
+    width: '100%',
+    maxWidth: 420,
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   themeToggleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
     borderWidth: 1,
   },
   themeToggleText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   brandSection: {
     alignItems: 'center',
-    marginBottom: 26,
+    marginBottom: 24,
   },
   logoCard: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 22,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 3,
+    marginBottom: 14,
   },
   logoImage: {
-    width: 200,
-    height: 60,
+    width: 140,
+    height: 38,
+  },
+  brandTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    marginBottom: 4,
   },
   brandSubtitle: {
     fontSize: 13,
-    fontWeight: '500',
     textAlign: 'center',
-    marginTop: 4,
-    maxWidth: 280,
   },
   card: {
-    borderRadius: 24,
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 18,
     padding: 22,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 14,
-    elevation: 4,
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  cardHeader: {
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  enterpriseBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  enterpriseBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-  },
-  googleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-    paddingVertical: 12,
-    marginBottom: 16,
-    gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
     elevation: 2,
+    marginBottom: 20,
   },
-  googleIconCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+  errorBox: {
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    marginBottom: 14,
+  },
+  errorText: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  inputGroup: {
+    marginBottom: 14,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    height: 42,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 13.5,
+    height: '100%',
+  },
+  primaryBtn: {
+    borderRadius: 10,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    marginTop: 6,
+    marginBottom: 16,
   },
-  googleGLogo: {
-    color: '#4285F4',
-    fontSize: 17,
-    fontWeight: '900',
-  },
-  googleBtnText: {
-    color: '#1E293B',
-    fontSize: 14,
+  primaryBtnText: {
+    fontSize: 13.5,
     fontWeight: '700',
   },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 14,
-    gap: 10,
+    marginBottom: 16,
   },
   dividerLine: {
     flex: 1,
     height: 1,
   },
   dividerText: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  errorBox: {
-    padding: 10,
-    borderRadius: 10,
-    marginBottom: 12,
-    borderWidth: 1,
-  },
-  errorText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  inputLabel: {
     fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1,
-    marginBottom: 6,
-    marginTop: 8,
+    marginHorizontal: 10,
   },
-  inputRow: {
+  oauthRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 48,
-    borderWidth: 1,
-    marginBottom: 10,
+    gap: 8,
   },
-  textInput: {
+  secondaryBtn: {
     flex: 1,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  loginBtn: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-    paddingVertical: 14,
-    marginTop: 14,
-    gap: 8,
-  },
-  loginBtnText: {
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  demoBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-    paddingVertical: 14,
-    marginTop: 10,
+    height: 38,
+    borderRadius: 8,
     borderWidth: 1,
-    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  demoBtnText: {
-    fontSize: 14,
-    fontWeight: '800',
+  secondaryBtnText: {
+    fontSize: 12.5,
+    fontWeight: '600',
   },
   footerRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 20,
+    alignItems: 'center',
   },
   footerText: {
     fontSize: 13,
   },
-  registerLink: {
+  footerLink: {
     fontSize: 13,
     fontWeight: '700',
+    textDecorationLine: 'underline',
   },
 });

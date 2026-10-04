@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { useExpenseStore } from '../../store/useExpenseStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useAppTheme } from '../../hooks/use-theme';
-import { Sparkles, Send, X, Bot, User } from '../../components/ui/icons';
+import { Sparkles, Send, X, Bot } from '../../components/ui/icons';
 import Constants from 'expo-constants';
 
 interface ChatMessage {
@@ -56,7 +56,7 @@ export default function AiChatModal() {
       sender: 'ai',
       text: `Hello ${
         profile.displayName?.split(' ')[0] || 'there'
-      }! I'm XpenseAI, your personal financial copilot. You can ask me questions like:\n• "How much did I spend on Food this month?"\n• "What is my biggest expense category?"\n• "Give me 3 tips to cut my subscription bills."`,
+      }! I am your AI financial assistant. You can ask me:\n• "How much did I spend on Food this month?"\n• "What is my biggest expense category?"\n• "Give me actionable tips to reduce my expenses."`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -67,10 +67,11 @@ export default function AiChatModal() {
     scrollViewRef.current?.scrollToEnd({ animated: true });
   }, [messages, loading]);
 
-  const handleSend = async () => {
-    if (!input.trim() || loading) return;
+  const handleSend = async (queryText?: string) => {
+    const textToSend = queryText || input;
+    if (!textToSend.trim() || loading) return;
 
-    const userText = input.trim();
+    const userText = textToSend.trim();
     const userMsg: ChatMessage = {
       id: 'user-' + Date.now(),
       sender: 'user',
@@ -83,7 +84,6 @@ export default function AiChatModal() {
     setLoading(true);
 
     try {
-      // Build smart financial context
       const currentMonthKey = new Date().toISOString().slice(0, 7);
       const thisMonthExpenses = expenses.filter((e) => e.date?.startsWith(currentMonthKey));
       const totalSpent = thisMonthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
@@ -93,63 +93,64 @@ export default function AiChatModal() {
         categoryMap[e.category] = (categoryMap[e.category] || 0) + (e.amount || 0);
       });
 
-      const contextPrompt = `You are XpenseAI, an empathetic and highly intelligent personal finance assistant for ${
-        profile.displayName || 'the user'
-      }.
-User's Financial Context:
+      const contextPrompt = `You are XpenseAI, a concise and sharp personal finance copilot.
+User's Financial Telemetry:
 - Currency: ${currency}
-- Total monthly spending this month: ${currency}${totalSpent.toLocaleString()}
-- Spending by category: ${JSON.stringify(categoryMap)}
-- Budgets: ${JSON.stringify(budgets.map((b) => ({ category: b.category, limit: b.amount })))}
-- Recent transactions: ${JSON.stringify(
-        expenses.slice(0, 8).map((e) => ({
-          date: e.date,
-          amount: e.amount,
-          cat: e.category,
-          merchant: e.merchant || e.description,
-        }))
+- Total Spent this Month: ${currency}${totalSpent.toLocaleString()}
+- Monthly Expenses Count: ${thisMonthExpenses.length}
+- Spending Breakdown by Category: ${JSON.stringify(categoryMap)}
+- Configured Budgets: ${JSON.stringify(
+        budgets.map((b) => ({ category: b.category, limit: b.amount }))
       )}
+Keep answers concise, direct, formatting in markdown bullet points where helpful.`;
 
-User Query: "${userText}"
-Provide a clear, actionable, friendly response formatted nicely with markdown bullet points if helpful. Keep it concise (under 120 words).`;
-
-      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${OPENROUTER_API_KEY}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': 'https://xpenseai.app',
-          'X-Title': 'XpenseAI Assistant',
+          'X-Title': 'XpenseAI Copilot',
         },
         body: JSON.stringify({
           model: OPENROUTER_MODEL,
-          messages: [{ role: 'user', content: contextPrompt }],
-          max_tokens: 280,
-          temperature: 0.5,
+          messages: [
+            { role: 'system', content: contextPrompt },
+            ...messages.map((m) => ({
+              role: m.sender === 'user' ? 'user' : 'assistant',
+              content: m.text,
+            })),
+            { role: 'user', content: userText },
+          ],
+          temperature: 0.7,
+          max_tokens: 400,
         }),
       });
 
-      const data = await res.json();
-      const reply =
+      const data = await response.json();
+      const aiReply =
         data.choices?.[0]?.message?.content ||
-        "I've analyzed your financial data. You're making steady progress this month! Let me know if you want a deeper dive into any specific category.";
+        "I'm having trouble analyzing the financial logs right now. Please try again.";
 
       const aiMsg: ChatMessage = {
         id: 'ai-' + Date.now(),
         sender: 'ai',
-        text: reply,
+        text: aiReply,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
 
       setMessages((prev) => [...prev, aiMsg]);
-    } catch (err) {
+    } catch {
       const fallbackMsg: ChatMessage = {
-        id: 'ai-err-' + Date.now(),
+        id: 'fallback-' + Date.now(),
         sender: 'ai',
-        text: `Based on your ${expenses.length} tracked records, your total monthly spend is ${currency}${expenses.reduce(
-          (sum, e) => sum + (e.amount || 0),
-          0
-        ).toLocaleString()}. You're managing expenses well!`,
+        text: `You have spent ${currency}${expenses
+          .slice(0, 5)
+          .reduce(
+            (sum, e) => sum + (e.amount || 0),
+            0
+          )
+          .toLocaleString()} across your recent transactions. Everything is recorded securely.`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, fallbackMsg]);
@@ -157,6 +158,12 @@ Provide a clear, actionable, friendly response formatted nicely with markdown bu
       setLoading(false);
     }
   };
+
+  const quickPrompts = [
+    'How much did I spend this month?',
+    'Top spending category',
+    'Tips to save 15%',
+  ];
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
@@ -167,19 +174,50 @@ Provide a clear, actionable, friendly response formatted nicely with markdown bu
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
           <View style={styles.headerLeft}>
-            <View style={[styles.headerIconCircle, { backgroundColor: colors.primaryLight }]}>
-              <Sparkles size={20} color={colors.primary} />
+            <View
+              style={[
+                styles.headerIconBox,
+                {
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+                  borderColor: colors.cardBorder,
+                },
+              ]}
+            >
+              <Sparkles size={16} color={colors.text} />
             </View>
             <View>
-              <Text style={[styles.headerTitle, { color: colors.text }]}>XpenseAI Copilot</Text>
-              <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
-                AI Financial Advisor
+              <Text style={[styles.headerTitle, { color: colors.text }]}>AI Advisor</Text>
+              <Text style={[styles.headerSub, { color: colors.textMuted }]}>
+                Smart finance copilot
               </Text>
             </View>
           </View>
           <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
-            <X size={20} color={colors.textSecondary} />
+            <X size={18} color={colors.textSecondary} />
           </TouchableOpacity>
+        </View>
+
+        {/* Quick Prompts */}
+        <View style={[styles.quickPromptRow, { borderBottomColor: colors.cardBorder }]}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickPromptScroll}>
+            {quickPrompts.map((prompt) => (
+              <TouchableOpacity
+                key={prompt}
+                onPress={() => handleSend(prompt)}
+                style={[
+                  styles.promptChip,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.cardBorder,
+                  },
+                ]}
+              >
+                <Text style={[styles.promptChipText, { color: colors.textSecondary }]}>
+                  {prompt}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         {/* Chat Messages */}
@@ -200,8 +238,16 @@ Provide a clear, actionable, friendly response formatted nicely with markdown bu
                 ]}
               >
                 {!isUser && (
-                  <View style={[styles.aiAvatar, { backgroundColor: colors.primaryLight }]}>
-                    <Bot size={16} color={colors.primary} />
+                  <View
+                    style={[
+                      styles.aiAvatar,
+                      {
+                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+                        borderColor: colors.cardBorder,
+                      },
+                    ]}
+                  >
+                    <Bot size={14} color={colors.text} />
                   </View>
                 )}
                 <View
@@ -222,8 +268,8 @@ Provide a clear, actionable, friendly response formatted nicely with markdown bu
                     style={[
                       styles.bubbleText,
                       isUser
-                        ? [styles.userText, { color: colors.primaryText }]
-                        : [styles.aiText, { color: colors.text }],
+                        ? { color: colors.primaryText }
+                        : { color: colors.text },
                     ]}
                   >
                     {msg.text}
@@ -232,8 +278,8 @@ Provide a clear, actionable, friendly response formatted nicely with markdown bu
                     style={[
                       styles.timeText,
                       isUser
-                        ? [styles.userTime, { color: colors.primaryText, opacity: 0.8 }]
-                        : [styles.aiTime, { color: colors.textMuted }],
+                        ? { color: colors.primaryText, opacity: 0.7 }
+                        : { color: colors.textMuted },
                     ]}
                   >
                     {msg.timestamp}
@@ -249,18 +295,19 @@ Provide a clear, actionable, friendly response formatted nicely with markdown bu
                 styles.loadingBubble,
                 {
                   backgroundColor: colors.card,
+                  borderColor: colors.cardBorder,
                 },
               ]}
             >
-              <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-                Analyzing financial telemetry...
+              <ActivityIndicator size="small" color={colors.text} />
+              <Text style={[styles.loadingText, { color: colors.textMuted }]}>
+                Analyzing finances...
               </Text>
             </View>
           )}
         </ScrollView>
 
-        {/* Input Bar */}
+        {/* Bottom Input Bar */}
         <View
           style={[
             styles.inputContainer,
@@ -274,30 +321,31 @@ Provide a clear, actionable, friendly response formatted nicely with markdown bu
             style={[
               styles.chatInput,
               {
-                backgroundColor: colors.inputBg,
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
                 color: colors.text,
+                borderColor: colors.cardBorder,
               },
             ]}
-            placeholder="Ask about your budget, savings tips..."
+            placeholder="Ask AI anything about your spending..."
             placeholderTextColor={colors.textMuted}
             value={input}
             onChangeText={setInput}
-            onSubmitEditing={handleSend}
+            onSubmitEditing={() => handleSend()}
             returnKeyType="send"
           />
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={handleSend}
+            onPress={() => handleSend()}
             disabled={!input.trim() || loading}
             style={[
               styles.sendBtn,
-              input.trim() && !loading
-                ? [styles.sendBtnActive, { backgroundColor: colors.primary }]
-                : [styles.sendBtnDisabled, { backgroundColor: colors.inputBg }],
+              {
+                backgroundColor: input.trim() && !loading ? colors.primary : (isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'),
+              },
             ]}
           >
             <Send
-              size={18}
+              size={15}
               color={input.trim() && !loading ? colors.primaryText : colors.textMuted}
             />
           </TouchableOpacity>
@@ -319,25 +367,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'android' ? 24 : 12,
-    paddingBottom: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
   },
-  headerIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  headerIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
   headerSub: {
     fontSize: 11,
@@ -346,100 +395,109 @@ const styles = StyleSheet.create({
   closeBtn: {
     padding: 6,
   },
+  quickPromptRow: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+  },
+  quickPromptScroll: {
+    paddingHorizontal: 16,
+    gap: 6,
+  },
+  promptChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  promptChipText: {
+    fontSize: 11.5,
+    fontWeight: '500',
+  },
   chatArea: {
     flex: 1,
   },
   chatContent: {
-    padding: 16,
-    paddingBottom: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     gap: 12,
   },
   msgRow: {
     flexDirection: 'row',
-    marginVertical: 4,
+    alignItems: 'flex-end',
+    gap: 8,
   },
   userMsgWrapper: {
     justifyContent: 'flex-end',
   },
   aiMsgWrapper: {
     justifyContent: 'flex-start',
-    alignItems: 'flex-start',
   },
   aiAvatar: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: 7,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
-    marginTop: 4,
+    marginBottom: 4,
   },
   bubble: {
     maxWidth: '82%',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 18,
-  },
-  userBubble: {
-    borderBottomRightRadius: 4,
-  },
-  aiBubble: {
-    borderWidth: 1,
-    borderBottomLeftRadius: 4,
-  },
-  bubbleText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  userText: {
-    fontWeight: '600',
-  },
-  aiText: {
-    fontWeight: '500',
-  },
-  timeText: {
-    fontSize: 10,
-    marginTop: 6,
-    alignSelf: 'flex-end',
-  },
-  userTime: {},
-  aiTime: {},
-  loadingBubble: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 14,
+  },
+  userBubble: {
+    borderBottomRightRadius: 3,
+  },
+  aiBubble: {
+    borderWidth: 1,
+    borderBottomLeftRadius: 3,
+  },
+  bubbleText: {
+    fontSize: 13.5,
+    lineHeight: 19,
+  },
+  timeText: {
+    fontSize: 10,
+    marginTop: 4,
+    alignSelf: 'flex-end',
+  },
+  loadingBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
     alignSelf: 'flex-start',
     marginLeft: 36,
-    gap: 8,
   },
   loadingText: {
     fontSize: 12,
-    fontWeight: '600',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 10,
     borderTopWidth: 1,
     gap: 8,
   },
   chatInput: {
     flex: 1,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 13.5,
   },
   sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendBtnActive: {},
-  sendBtnDisabled: {},
 });

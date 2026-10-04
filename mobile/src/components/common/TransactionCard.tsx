@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { UnifiedTransaction, Expense, Income } from '../../types';
+import { UnifiedTransaction } from '../../types';
 import { CATEGORIES, INCOME_SOURCES } from '../../constants/categories';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useAppTheme } from '../../hooks/use-theme';
@@ -79,32 +79,24 @@ function formatDisplayDate(dateStr: string) {
 export const TransactionCard: React.FC<TransactionCardProps> = ({
   transaction,
   onPress,
-  onDelete,
-  showActions = true,
 }) => {
   const { profile } = useAuthStore();
   const { colors, isDark } = useAppTheme();
   const currency = profile.currency || '₹';
   const isIncome = transaction.type === 'income';
 
-  let metaColor = isIncome ? '#10B981' : colors.primary;
-  let metaBgColor = isIncome ? 'rgba(16, 185, 129, 0.12)' : 'rgba(99, 102, 241, 0.12)';
   let iconName = isIncome ? 'Briefcase' : 'Receipt';
   let categoryLabel = transaction.categoryOrSource;
 
   if (isIncome) {
     const srcMeta = INCOME_SOURCES[transaction.categoryOrSource as keyof typeof INCOME_SOURCES];
     if (srcMeta) {
-      metaColor = srcMeta.color;
-      metaBgColor = srcMeta.bgColor;
       iconName = srcMeta.iconName;
       categoryLabel = srcMeta.label;
     }
   } else {
     const catMeta = CATEGORIES[transaction.categoryOrSource as keyof typeof CATEGORIES];
     if (catMeta) {
-      metaColor = catMeta.color;
-      metaBgColor = catMeta.bgColor;
       iconName = catMeta.iconName;
       categoryLabel = catMeta.label;
     }
@@ -114,47 +106,42 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
 
   return (
     <TouchableOpacity
-      activeOpacity={0.75}
+      activeOpacity={0.7}
       onPress={onPress}
       style={[
         styles.card,
         {
           backgroundColor: colors.card,
-          borderColor: isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.05)',
-          shadowColor: isDark ? '#000' : 'rgba(15, 23, 42, 0.06)',
+          borderColor: colors.cardBorder,
+          shadowColor: colors.cardShadow,
         },
       ]}
     >
-      {/* Left Category Icon */}
+      {/* Left Icon with subtle monochrome squircle container */}
       <View
         style={[
-          styles.iconSquircle,
+          styles.iconContainer,
           {
-            backgroundColor: metaBgColor,
+            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+            borderColor: colors.cardBorder,
           },
         ]}
       >
-        <IconComponent size={18} color={metaColor} />
+        <IconComponent size={16} color={isIncome ? colors.success : colors.text} />
       </View>
 
       {/* Center Details */}
       <View style={styles.centerDetails}>
-        <View style={styles.titleRow}>
-          <Text style={[styles.titleText, { color: colors.text }]} numberOfLines={1}>
-            {transaction.description || transaction.merchantOrPayer || categoryLabel}
-          </Text>
-        </View>
+        <Text style={[styles.titleText, { color: colors.text }]} numberOfLines={1}>
+          {transaction.description || transaction.merchantOrPayer || categoryLabel}
+        </Text>
 
         <View style={styles.subRow}>
-          <Text style={[styles.categorySubText, { color: colors.textSecondary }]}>
+          <Text style={[styles.categoryText, { color: colors.textSecondary }]}>
             {categoryLabel}
           </Text>
-          <View style={[styles.dot, { backgroundColor: colors.textMuted }]} />
-          <Text style={[styles.metaText, { color: colors.textMuted }]}>
-            {transaction.paymentMethod || 'UPI'}
-          </Text>
-          <View style={[styles.dot, { backgroundColor: colors.textMuted }]} />
-          <Text style={[styles.metaText, { color: colors.textMuted }]}>
+          <View style={[styles.dot, { backgroundColor: colors.cardBorder }]} />
+          <Text style={[styles.dateText, { color: colors.textMuted }]}>
             {formatDisplayDate(transaction.date)}
           </Text>
         </View>
@@ -166,7 +153,7 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
           style={[
             styles.amountText,
             {
-              color: isIncome ? '#10B981' : colors.text,
+              color: isIncome ? colors.success : colors.text,
             },
           ]}
         >
@@ -177,6 +164,9 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
             maximumFractionDigits: 2,
           })}
         </Text>
+        <Text style={[styles.methodText, { color: colors.textMuted }]}>
+          {transaction.paymentMethod || 'UPI'}
+        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -186,56 +176,41 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 18,
-    paddingVertical: 13,
-    paddingHorizontal: 15,
+    borderRadius: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
     marginBottom: 8,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
     elevation: 1,
   },
-  iconSquircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+  iconContainer: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+    borderWidth: 1,
   },
   centerDetails: {
     flex: 1,
     justifyContent: 'center',
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 3,
-  },
   titleText: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
     letterSpacing: -0.2,
+    marginBottom: 2,
   },
   subRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 4,
+    gap: 6,
   },
-  typeBadge: {
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 5,
-    marginRight: 2,
-  },
-  typeBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.4,
-  },
-  categorySubText: {
+  categoryText: {
     fontSize: 12,
     fontWeight: '500',
   },
@@ -244,7 +219,7 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 1.5,
   },
-  metaText: {
+  dateText: {
     fontSize: 11,
     fontWeight: '400',
   },
@@ -254,13 +229,14 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   amountText: {
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 14.5,
+    fontWeight: '700',
     letterSpacing: -0.3,
+    marginBottom: 1,
   },
-  deleteBtn: {
-    marginTop: 3,
-    padding: 2,
+  methodText: {
+    fontSize: 10.5,
+    fontWeight: '500',
+    textTransform: 'uppercase',
   },
 });
-

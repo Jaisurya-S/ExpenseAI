@@ -71,7 +71,7 @@ export default function BudgetsScreen() {
   const [openingBalanceInput, setOpeningBalanceInput] = useState('');
 
   const currentMonthKey = new Date().toISOString().slice(0, 7);
-  const monthName = new Date().toLocaleString('default', { month: 'long' });
+  const monthName = new Date().toLocaleString('default', { month: 'short' });
 
   // Financial calculations
   const totalIncomeAllTime = useMemo(
@@ -143,9 +143,9 @@ export default function BudgetsScreen() {
     const amountNum = parseFloat(budgetAmount);
     if (isNaN(amountNum) || amountNum <= 0) {
       if (Platform.OS === 'web') {
-        window.alert('Please enter a valid amount.');
+        window.alert('Please enter a valid positive number for the budget limit.');
       } else {
-        Alert.alert('Invalid Amount', 'Please enter a valid amount.');
+        Alert.alert('Invalid Amount', 'Please enter a valid positive amount.');
       }
       return;
     }
@@ -164,29 +164,31 @@ export default function BudgetsScreen() {
     setBudgetModalVisible(false);
   };
 
-  const handleDeleteCurrentBudget = async () => {
-    if (editingBudgetId) {
-      const confirmDelete = async () => {
-        await deleteBudget(editingBudgetId);
+  const handleDeleteBudget = async (id: string) => {
+    const msg = 'Are you sure you want to remove this budget?';
+    if (Platform.OS === 'web') {
+      if (window.confirm(msg)) {
+        deleteBudget(id);
         setBudgetModalVisible(false);
-      };
-
-      if (Platform.OS === 'web') {
-        if (window.confirm('Delete this budget?')) {
-          await confirmDelete();
-        }
-      } else {
-        Alert.alert('Delete Budget', 'Are you sure you want to delete this budget?', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: confirmDelete },
-        ]);
       }
+    } else {
+      Alert.alert('Delete Budget', msg, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteBudget(id);
+            setBudgetModalVisible(false);
+          },
+        },
+      ]);
     }
   };
 
   const handleSaveOpeningBalance = async () => {
     const amountNum = parseFloat(openingBalanceInput);
-    if (isNaN(amountNum)) {
+    if (isNaN(amountNum) || amountNum < 0) {
       if (Platform.OS === 'web') {
         window.alert('Please enter a valid amount.');
       } else {
@@ -205,85 +207,81 @@ export default function BudgetsScreen() {
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Budgets</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Budgets & Balance</Text>
 
           <View style={styles.headerActions}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => router.push('/modal/add-income')}
-              style={[styles.addIncomeBtn, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5' }]}
-            >
-              <ArrowDownLeft size={14} color="#10B981" />
-              <Text style={styles.addIncomeBtnText}>+ Income</Text>
-            </TouchableOpacity>
-
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={() => openAddBudgetModal()}
               style={[styles.addBtn, { backgroundColor: colors.primary }]}
             >
-              <Plus size={15} color="#FFFFFF" />
-              <Text style={styles.addBtnText}>New Limit</Text>
+              <Plus size={14} color={colors.primaryText} />
+              <Text style={[styles.addBtnText, { color: colors.primaryText }]}>New Budget</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Tab Switcher */}
-        <View
-          style={[
-            styles.tabBarContainer,
-            {
-              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
-            },
-          ]}
-        >
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setActiveTab('budgets')}
+        <View style={styles.tabContainer}>
+          <View
             style={[
-              styles.tabItem,
-              activeTab === 'budgets' && [
-                styles.tabItemActive,
-                { backgroundColor: colors.card },
-              ],
+              styles.segmentedControl,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+                borderColor: colors.cardBorder,
+              },
             ]}
           >
-            <Text
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setActiveTab('budgets')}
               style={[
-                styles.tabItemText,
-                {
-                  color: activeTab === 'budgets' ? colors.text : colors.textSecondary,
-                  fontWeight: activeTab === 'budgets' ? '700' : '500',
+                styles.segmentTab,
+                activeTab === 'budgets' && {
+                  backgroundColor: colors.card,
+                  borderColor: colors.cardBorder,
+                  shadowColor: colors.cardShadow,
                 },
               ]}
             >
-              Categories ({categoryBudgets.length})
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={[
+                  styles.segmentTabText,
+                  {
+                    color: activeTab === 'budgets' ? colors.text : colors.textMuted,
+                    fontWeight: activeTab === 'budgets' ? '700' : '500',
+                  },
+                ]}
+              >
+                Categories ({categoryBudgets.length})
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setActiveTab('income')}
-            style={[
-              styles.tabItem,
-              activeTab === 'income' && [
-                styles.tabItemActive,
-                { backgroundColor: colors.card },
-              ],
-            ]}
-          >
-            <Text
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setActiveTab('income')}
               style={[
-                styles.tabItemText,
-                {
-                  color: activeTab === 'income' ? colors.text : colors.textSecondary,
-                  fontWeight: activeTab === 'income' ? '700' : '500',
+                styles.segmentTab,
+                activeTab === 'income' && {
+                  backgroundColor: colors.card,
+                  borderColor: colors.cardBorder,
+                  shadowColor: colors.cardShadow,
                 },
               ]}
             >
-              Income Sources ({Object.keys(incomeSourcesMap).length})
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={[
+                  styles.segmentTabText,
+                  {
+                    color: activeTab === 'income' ? colors.text : colors.textMuted,
+                    fontWeight: activeTab === 'income' ? '700' : '500',
+                  },
+                ]}
+              >
+                Income Sources ({Object.keys(incomeSourcesMap).length})
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView
@@ -291,26 +289,26 @@ export default function BudgetsScreen() {
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
         >
-          {/* Liquidity Card */}
+          {/* Balance Overview Card */}
           <View
             style={[
-              styles.heroLiquidityCard,
+              styles.overviewCard,
               {
                 backgroundColor: colors.card,
-                borderColor: isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.05)',
-                shadowColor: isDark ? '#000' : 'rgba(15, 23, 42, 0.06)',
+                borderColor: colors.cardBorder,
+                shadowColor: colors.cardShadow,
               },
             ]}
           >
-            <View style={styles.liquidityTopRow}>
+            <View style={styles.overviewTopRow}>
               <View>
-                <Text style={[styles.liquidityCaption, { color: colors.textSecondary }]}>
+                <Text style={[styles.overviewCaption, { color: colors.textSecondary }]}>
                   Current Balance
                 </Text>
                 <Text
                   style={[
-                    styles.liquidityAmount,
-                    { color: availableBalance < 0 ? '#EF4444' : colors.text },
+                    styles.overviewAmount,
+                    { color: availableBalance < 0 ? colors.danger : colors.text },
                   ]}
                 >
                   {availableBalance < 0 ? '-' : ''}
@@ -332,30 +330,30 @@ export default function BudgetsScreen() {
                   setOpeningBalanceModalVisible(true);
                 }}
                 style={[
-                  styles.openingBalancePill,
+                  styles.openingPill,
                   {
-                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)',
-                    borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+                    borderColor: colors.cardBorder,
                   },
                 ]}
               >
-                <PiggyBank size={13} color="#10B981" />
-                <Text style={[styles.openingBalancePillText, { color: colors.textSecondary }]}>
+                <PiggyBank size={13} color={colors.textSecondary} />
+                <Text style={[styles.openingPillText, { color: colors.textSecondary }]}>
                   Opening Balance
                 </Text>
               </TouchableOpacity>
             </View>
 
-            {/* Inflows vs Outflows */}
+            {/* Inflow & Outflow columns */}
             <View
               style={[
-                styles.liquidityGrid,
-                { borderTopColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)' },
+                styles.overviewGrid,
+                { borderTopColor: colors.cardBorder },
               ]}
             >
-              <View style={styles.gridColumn}>
+              <View style={styles.gridCol}>
                 <Text style={[styles.gridLabel, { color: colors.textMuted }]}>Credits</Text>
-                <Text style={[styles.gridValue, { color: '#10B981' }]}>
+                <Text style={[styles.gridValue, { color: colors.success }]}>
                   +{currency}{totalIncomeAllTime.toLocaleString('en-IN')}
                 </Text>
               </View>
@@ -363,11 +361,11 @@ export default function BudgetsScreen() {
               <View
                 style={[
                   styles.gridDivider,
-                  { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)' },
+                  { backgroundColor: colors.cardBorder },
                 ]}
               />
 
-              <View style={styles.gridColumn}>
+              <View style={styles.gridCol}>
                 <Text style={[styles.gridLabel, { color: colors.textMuted }]}>Debits</Text>
                 <Text style={[styles.gridValue, { color: colors.text }]}>
                   -{currency}{totalExpenseAllTime.toLocaleString('en-IN')}
@@ -377,11 +375,11 @@ export default function BudgetsScreen() {
               <View
                 style={[
                   styles.gridDivider,
-                  { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)' },
+                  { backgroundColor: colors.cardBorder },
                 ]}
               />
 
-              <View style={styles.gridColumn}>
+              <View style={styles.gridCol}>
                 <Text style={[styles.gridLabel, { color: colors.textMuted }]}>{monthName} Spent</Text>
                 <Text style={[styles.gridValue, { color: colors.text }]}>
                   {currency}{currentMonthSpent.toLocaleString('en-IN')}
@@ -390,24 +388,24 @@ export default function BudgetsScreen() {
             </View>
           </View>
 
-          {/* Master Monthly Target Limit Card */}
+          {/* Monthly Target Budget Card */}
           {effectiveTotalBudget > 0 && (
             <View
               style={[
-                styles.masterCard,
+                styles.targetCard,
                 {
                   backgroundColor: colors.card,
-                  borderColor: isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.05)',
-                  shadowColor: isDark ? '#000' : 'rgba(15, 23, 42, 0.05)',
+                  borderColor: colors.cardBorder,
+                  shadowColor: colors.cardShadow,
                 },
               ]}
             >
-              <View style={styles.masterTop}>
+              <View style={styles.targetTop}>
                 <View>
-                  <Text style={[styles.masterSubtitle, { color: colors.textSecondary }]}>
+                  <Text style={[styles.targetSubtitle, { color: colors.textSecondary }]}>
                     {monthName} Spending Budget
                   </Text>
-                  <Text style={[styles.masterAmount, { color: colors.text }]}>
+                  <Text style={[styles.targetAmount, { color: colors.text }]}>
                     {currency}{effectiveTotalBudget.toLocaleString('en-IN')}
                   </Text>
                 </View>
@@ -423,157 +421,177 @@ export default function BudgetsScreen() {
                     setBudgetModalVisible(true);
                   }}
                   style={[
-                    styles.masterEditBtn,
-                    { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.12)' : 'rgba(29, 78, 216, 0.08)' },
+                    styles.targetEditBtn,
+                    {
+                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+                      borderColor: colors.cardBorder,
+                    },
                   ]}
                 >
-                  <Text style={[styles.masterEditText, { color: colors.primary }]}>
-                    Edit Target
+                  <Text style={[styles.targetEditText, { color: colors.text }]}>
+                    Edit Limit
                   </Text>
                 </TouchableOpacity>
               </View>
 
               <View
                 style={[
-                  styles.masterProgressTrack,
-                  { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)' },
+                  styles.targetTrack,
+                  { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' },
                 ]}
               >
                 <View
                   style={[
-                    styles.masterProgressFill,
+                    styles.targetBar,
                     {
                       width: `${Math.min(100, totalPercentageUsed)}%`,
                       backgroundColor:
                         totalPercentageUsed >= 100
-                          ? '#EF4444'
+                          ? colors.danger
                           : totalPercentageUsed >= 80
-                          ? '#F59E0B'
+                          ? colors.accentYellow
                           : colors.primary,
                     },
                   ]}
                 />
               </View>
 
-              <View style={styles.masterFooter}>
-                <Text style={[styles.footerSpent, { color: colors.textSecondary }]}>
-                  {currency}{currentMonthSpent.toLocaleString('en-IN')} spent ({totalPercentageUsed}%)
+              <View style={styles.targetFooter}>
+                <Text style={[styles.targetFooterText, { color: colors.textSecondary }]}>
+                  {currency}{currentMonthSpent.toLocaleString('en-IN')} spent
                 </Text>
-                <Text style={[styles.footerRemaining, { color: totalRemaining > 0 ? colors.primary : '#EF4444' }]}>
-                  {totalRemaining > 0 ? `${currency}${totalRemaining.toLocaleString('en-IN')} remaining` : 'Limit reached'}
+                <Text style={[styles.targetFooterText, { color: totalRemaining > 0 ? colors.success : colors.danger }]}>
+                  {currency}{totalRemaining.toLocaleString('en-IN')} remaining ({totalPercentageUsed}%)
                 </Text>
               </View>
             </View>
           )}
 
-          {/* Tab 1: Category Budgets */}
-          {activeTab === 'budgets' && (
-            <View style={styles.listSection}>
+          {activeTab === 'budgets' ? (
+            /* Category Budgets Tab */
+            <View style={styles.sectionContainer}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  Category Allocations
+                </Text>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => openAddBudgetModal()}
+                >
+                  <Text style={[styles.sectionActionText, { color: colors.textSecondary }]}>+ Add</Text>
+                </TouchableOpacity>
+              </View>
+
               {categoryBudgets.length === 0 ? (
                 <View
                   style={[
-                    styles.emptyState,
+                    styles.emptyBox,
                     {
                       backgroundColor: colors.card,
-                      borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)',
+                      borderColor: colors.cardBorder,
                     },
                   ]}
                 >
-                  <Wallet size={24} color={colors.textSecondary} style={{ marginBottom: 6 }} />
-                  <Text style={[styles.emptyTitle, { color: colors.text }]}>No category limits set</Text>
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => openAddBudgetModal()}
-                    style={[styles.emptyAddBtn, { backgroundColor: colors.primary }]}
-                  >
-                    <Text style={styles.emptyAddBtnText}>+ Set Category Limit</Text>
-                  </TouchableOpacity>
+                  <Text style={[styles.emptyBoxTitle, { color: colors.text }]}>
+                    No category budgets configured
+                  </Text>
+                  <Text style={[styles.emptyBoxSub, { color: colors.textMuted }]}>
+                    Set spending limits on specific categories to keep your expenses in check.
+                  </Text>
                 </View>
               ) : (
-                categoryBudgets.map((b) => (
-                  <BudgetProgressBar
-                    key={b.id}
-                    budget={b}
-                    spent={categorySpentMap[b.category || 'Other'] || 0}
-                    onEdit={() => openAddBudgetModal(b)}
-                  />
-                ))
+                categoryBudgets.map((b) => {
+                  const spent = categorySpentMap[b.category as ExpenseCategory] || 0;
+                  return (
+                    <BudgetProgressBar
+                      key={b.id}
+                      budget={b}
+                      spent={spent}
+                      onEdit={() => openAddBudgetModal(b)}
+                    />
+                  );
+                })
               )}
             </View>
-          )}
+          ) : (
+            /* Income Sources Tab */
+            <View style={styles.sectionContainer}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                  Income Sources ({monthName})
+                </Text>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => router.push('/modal/add-income')}
+                >
+                  <Text style={[styles.sectionActionText, { color: colors.textSecondary }]}>+ Add</Text>
+                </TouchableOpacity>
+              </View>
 
-          {/* Tab 2: Income Sources */}
-          {activeTab === 'income' && (
-            <View style={styles.listSection}>
               {Object.keys(incomeSourcesMap).length === 0 ? (
                 <View
                   style={[
-                    styles.emptyState,
+                    styles.emptyBox,
                     {
                       backgroundColor: colors.card,
-                      borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)',
+                      borderColor: colors.cardBorder,
                     },
                   ]}
                 >
-                  <PiggyBank size={24} color="#10B981" style={{ marginBottom: 6 }} />
-                  <Text style={[styles.emptyTitle, { color: colors.text }]}>No income recorded this month</Text>
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => router.push('/modal/add-income')}
-                    style={[styles.emptyAddBtn, { backgroundColor: '#10B981' }]}
-                  >
-                    <Text style={styles.emptyAddBtnText}>+ Add Income</Text>
-                  </TouchableOpacity>
+                  <Text style={[styles.emptyBoxTitle, { color: colors.text }]}>
+                    No income logged for this month
+                  </Text>
+                  <Text style={[styles.emptyBoxSub, { color: colors.textMuted }]}>
+                    Tap "+ Income" above to log your salary, freelance, or other earnings.
+                  </Text>
                 </View>
               ) : (
-                Object.entries(incomeSourcesMap).map(([src, val]) => {
-                  const meta = INCOME_SOURCES[src as keyof typeof INCOME_SOURCES] || INCOME_SOURCES.Other;
-                  const ratio = currentMonthIncome > 0 ? Math.round(((val || 0) / currentMonthIncome) * 100) : 0;
+                Object.entries(incomeSourcesMap).map(([source, amount]) => {
+                  const safeAmount = amount || 0;
+                  const percentOfTotal = currentMonthIncome > 0
+                    ? Math.round((safeAmount / currentMonthIncome) * 100)
+                    : 0;
+
                   return (
                     <View
-                      key={src}
+                      key={source}
                       style={[
-                        styles.incomeStreamCard,
+                        styles.incomeItemCard,
                         {
                           backgroundColor: colors.card,
-                          borderColor: isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.05)',
+                          borderColor: colors.cardBorder,
+                          shadowColor: colors.cardShadow,
                         },
                       ]}
                     >
-                      <View style={styles.incomeStreamTop}>
-                        <View style={styles.incomeStreamLeft}>
-                          <View style={[styles.incomeStreamIcon, { backgroundColor: meta.bgColor }]}>
-                            <View style={[styles.incomeStreamDot, { backgroundColor: meta.color }]} />
-                          </View>
-                          <View>
-                            <Text style={[styles.incomeStreamTitle, { color: colors.text }]}>
-                              {meta.label}
-                            </Text>
-                            <Text style={[styles.incomeStreamSub, { color: colors.textMuted }]}>
-                              {ratio}% of monthly income
-                            </Text>
-                          </View>
-                        </View>
-                        <Text style={styles.incomeStreamVal}>
-                          +{currency}{(val || 0).toLocaleString('en-IN')}
+                      <View style={styles.incomeItemTop}>
+                        <Text style={[styles.incomeSourceTitle, { color: colors.text }]}>
+                          {source}
+                        </Text>
+                        <Text style={[styles.incomeAmountText, { color: colors.success }]}>
+                          +{currency}{safeAmount.toLocaleString('en-IN')}
                         </Text>
                       </View>
+
                       <View
                         style={[
-                          styles.incomeStreamTrack,
-                          { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)' },
+                          styles.incomeTrack,
+                          { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' },
                         ]}
                       >
                         <View
                           style={[
-                            styles.incomeStreamFill,
+                            styles.incomeBar,
                             {
-                              width: `${ratio}%`,
-                              backgroundColor: meta.color,
+                              width: `${percentOfTotal}%`,
+                              backgroundColor: colors.success,
                             },
                           ]}
                         />
                       </View>
+                      <Text style={[styles.incomeSubPercent, { color: colors.textMuted }]}>
+                        {percentOfTotal}% of monthly inflow
+                      </Text>
                     </View>
                   );
                 })
@@ -582,269 +600,263 @@ export default function BudgetsScreen() {
           )}
         </ScrollView>
 
-        {/* Set/Edit Budget Modal */}
+        {/* Budget Modal */}
         <Modal
           visible={budgetModalVisible}
-          transparent
           animationType="fade"
+          transparent
           onRequestClose={() => setBudgetModalVisible(false)}
         >
-          <View style={styles.modalBackdrop}>
+          <View style={styles.modalOverlay}>
             <View
               style={[
-                styles.modalContent,
+                styles.modalCard,
                 {
                   backgroundColor: colors.card,
-                  borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+                  borderColor: colors.cardBorder,
+                  shadowColor: colors.cardShadow,
                 },
               ]}
             >
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  {editingBudgetId ? 'Edit Budget' : 'Set Budget Limit'}
+                  {editingBudgetId ? 'Edit Budget Limit' : 'New Spending Limit'}
                 </Text>
                 <TouchableOpacity onPress={() => setBudgetModalVisible(false)}>
                   <X size={18} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
 
-              {/* Scope Switcher */}
-              {!editingBudgetId && (
-                <View
+              {/* Overall vs Category Switch */}
+              <View
+                style={[
+                  styles.modalSwitchRow,
+                  {
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+                    borderColor: colors.cardBorder,
+                  },
+                ]}
+              >
+                <TouchableOpacity
+                  onPress={() => setIsOverallBudget(false)}
                   style={[
-                    styles.modalScopeRow,
-                    { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)' },
+                    styles.modalSwitchBtn,
+                    !isOverallBudget && {
+                      backgroundColor: colors.card,
+                      borderColor: colors.cardBorder,
+                    },
                   ]}
                 >
-                  <TouchableOpacity
-                    onPress={() => setIsOverallBudget(false)}
+                  <Text
                     style={[
-                      styles.modalScopeBtn,
-                      !isOverallBudget && { backgroundColor: colors.card },
+                      styles.modalSwitchBtnText,
+                      { color: !isOverallBudget ? colors.text : colors.textMuted, fontWeight: !isOverallBudget ? '700' : '500' },
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.modalScopeBtnText,
-                        { color: !isOverallBudget ? colors.primary : colors.textSecondary },
-                      ]}
-                    >
-                      Category Limit
-                    </Text>
-                  </TouchableOpacity>
+                    Category
+                  </Text>
+                </TouchableOpacity>
 
-                  <TouchableOpacity
-                    onPress={() => setIsOverallBudget(true)}
+                <TouchableOpacity
+                  onPress={() => setIsOverallBudget(true)}
+                  style={[
+                    styles.modalSwitchBtn,
+                    isOverallBudget && {
+                      backgroundColor: colors.card,
+                      borderColor: colors.cardBorder,
+                    },
+                  ]}
+                >
+                  <Text
                     style={[
-                      styles.modalScopeBtn,
-                      isOverallBudget && { backgroundColor: colors.card },
+                      styles.modalSwitchBtnText,
+                      { color: isOverallBudget ? colors.text : colors.textMuted, fontWeight: isOverallBudget ? '700' : '500' },
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.modalScopeBtnText,
-                        { color: isOverallBudget ? colors.primary : colors.textSecondary },
-                      ]}
-                    >
-                      Overall Budget
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+                    Overall Total
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
-              {/* Category Picker */}
+              {/* Category Picker if Category budget */}
               {!isOverallBudget && (
-                <>
-                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Category</Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.categoryPickerRow}
-                  >
+                <View style={styles.formGroup}>
+                  <Text style={[styles.formLabel, { color: colors.textSecondary }]}>Select Category</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryPickerScroll}>
                     {ALL_CATEGORIES.map((cat) => {
-                      const meta = CATEGORIES[cat];
-                      const isSelected = selectedCategory === cat;
+                      const isSel = selectedCategory === cat;
                       return (
                         <TouchableOpacity
                           key={cat}
                           onPress={() => setSelectedCategory(cat)}
                           style={[
-                            styles.catOption,
+                            styles.categoryPickChip,
                             {
-                              backgroundColor: isSelected ? meta.bgColor : isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)',
-                              borderColor: isSelected ? meta.color : 'transparent',
+                              backgroundColor: isSel ? colors.primary : colors.card,
+                              borderColor: isSel ? colors.primary : colors.cardBorder,
                             },
                           ]}
                         >
-                          <Text
-                            style={[
-                              styles.catOptionText,
-                              {
-                                color: isSelected ? meta.color : colors.textSecondary,
-                                fontWeight: isSelected ? '700' : '500',
-                              },
-                            ]}
-                          >
-                            {meta.label}
+                          <Text style={[styles.categoryPickText, { color: isSel ? colors.primaryText : colors.text }]}>
+                            {cat}
                           </Text>
                         </TouchableOpacity>
                       );
                     })}
                   </ScrollView>
-                </>
+                </View>
               )}
 
-              {/* Amount */}
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                Limit Amount ({currency})
-              </Text>
-              <View
-                style={[
-                  styles.amountInputContainer,
-                  {
-                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)',
-                    borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
-                  },
-                ]}
-              >
-                <Text style={[styles.currencyPrefix, { color: colors.primary }]}>{currency}</Text>
+              {/* Amount Input */}
+              <View style={styles.formGroup}>
+                <Text style={[styles.formLabel, { color: colors.textSecondary }]}>Budget Limit ({currency})</Text>
                 <TextInput
-                  style={[styles.amountTextInput, { color: colors.text }]}
-                  keyboardType="decimal-pad"
-                  placeholder="5,000"
+                  style={[
+                    styles.modalInput,
+                    {
+                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                      color: colors.text,
+                      borderColor: colors.cardBorder,
+                    },
+                  ]}
+                  placeholder="e.g. 5000"
                   placeholderTextColor={colors.textMuted}
+                  keyboardType="numeric"
                   value={budgetAmount}
                   onChangeText={setBudgetAmount}
-                  autoFocus
                 />
+
+                {/* Preset Chips */}
+                <View style={styles.presetRow}>
+                  {BUDGET_PRESETS.map((preset) => (
+                    <TouchableOpacity
+                      key={preset}
+                      onPress={() => setBudgetAmount(preset.toString())}
+                      style={[
+                        styles.presetChip,
+                        {
+                          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+                          borderColor: colors.cardBorder,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.presetText, { color: colors.textSecondary }]}>
+                        {currency}{preset.toLocaleString()}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
 
-              {/* Presets */}
-              <View style={styles.presetRow}>
-                {BUDGET_PRESETS.map((amt) => (
+              {/* Modal Actions */}
+              <View style={styles.modalFooter}>
+                {editingBudgetId && (
                   <TouchableOpacity
-                    key={amt}
-                    onPress={() => setBudgetAmount(amt.toString())}
+                    onPress={() => handleDeleteBudget(editingBudgetId)}
                     style={[
-                      styles.presetChip,
+                      styles.modalDeleteBtn,
                       {
-                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)',
-                        borderColor: isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.05)',
+                        backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2',
+                        borderColor: colors.dangerBorder,
                       },
                     ]}
                   >
-                    <Text style={[styles.presetChipText, { color: colors.textSecondary }]}>
-                      {currency}{amt.toLocaleString('en-IN')}
-                    </Text>
+                    <Text style={[styles.modalDeleteText, { color: colors.danger }]}>Delete</Text>
                   </TouchableOpacity>
-                ))}
-              </View>
+                )}
 
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={handleSaveBudget}
-                style={[styles.saveBtn, { backgroundColor: colors.primary }]}
-              >
-                <Text style={styles.saveBtnText}>
-                  Save Budget
-                </Text>
-              </TouchableOpacity>
-
-              {editingBudgetId && (
                 <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={handleDeleteCurrentBudget}
-                  style={styles.deleteModalBtn}
+                  onPress={handleSaveBudget}
+                  style={[styles.modalSaveBtn, { backgroundColor: colors.primary }]}
                 >
-                  <Text style={styles.deleteModalBtnText}>
-                    Delete Budget
+                  <Text style={[styles.modalSaveText, { color: colors.primaryText }]}>
+                    Save Budget
                   </Text>
                 </TouchableOpacity>
-              )}
+              </View>
             </View>
           </View>
         </Modal>
 
-        {/* Set Opening Balance Modal */}
+        {/* Opening Balance Modal */}
         <Modal
           visible={openingBalanceModalVisible}
-          transparent
           animationType="fade"
+          transparent
           onRequestClose={() => setOpeningBalanceModalVisible(false)}
         >
-          <View style={styles.modalBackdrop}>
+          <View style={styles.modalOverlay}>
             <View
               style={[
-                styles.modalContent,
+                styles.modalCard,
                 {
                   backgroundColor: colors.card,
-                  borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+                  borderColor: colors.cardBorder,
+                  shadowColor: colors.cardShadow,
                 },
               ]}
             >
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  Set Opening Balance
+                  Opening Balance
                 </Text>
                 <TouchableOpacity onPress={() => setOpeningBalanceModalVisible(false)}>
                   <X size={18} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
 
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                Starting Balance ({currency})
+              <Text style={[styles.openingBalanceHint, { color: colors.textSecondary }]}>
+                Set the starting liquidity available in your bank/cash before tracking transactions.
               </Text>
-              <View
-                style={[
-                  styles.amountInputContainer,
-                  {
-                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)',
-                    borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
-                  },
-                ]}
-              >
-                <Text style={[styles.currencyPrefix, { color: '#10B981' }]}>{currency}</Text>
+
+              <View style={styles.formGroup}>
                 <TextInput
-                  style={[styles.amountTextInput, { color: colors.text }]}
-                  keyboardType="decimal-pad"
-                  placeholder="25,000"
+                  style={[
+                    styles.modalInput,
+                    {
+                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                      color: colors.text,
+                      borderColor: colors.cardBorder,
+                    },
+                  ]}
+                  placeholder="e.g. 25000"
                   placeholderTextColor={colors.textMuted}
+                  keyboardType="numeric"
                   value={openingBalanceInput}
                   onChangeText={setOpeningBalanceInput}
-                  autoFocus
                 />
+
+                <View style={styles.presetRow}>
+                  {OPENING_PRESETS.map((preset) => (
+                    <TouchableOpacity
+                      key={preset}
+                      onPress={() => setOpeningBalanceInput(preset.toString())}
+                      style={[
+                        styles.presetChip,
+                        {
+                          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+                          borderColor: colors.cardBorder,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.presetText, { color: colors.textSecondary }]}>
+                        {currency}{preset.toLocaleString()}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
 
-              {/* Opening Presets */}
-              <View style={styles.presetRow}>
-                {OPENING_PRESETS.map((amt) => (
-                  <TouchableOpacity
-                    key={amt}
-                    onPress={() => setOpeningBalanceInput(amt.toString())}
-                    style={[
-                      styles.presetChip,
-                      {
-                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)',
-                        borderColor: isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.05)',
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.presetChipText, { color: '#10B981' }]}>
-                      {currency}{amt.toLocaleString('en-IN')}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={styles.modalFooter}>
+                <TouchableOpacity
+                  onPress={handleSaveOpeningBalance}
+                  style={[styles.modalSaveBtn, { backgroundColor: colors.primary }]}
+                >
+                  <Text style={[styles.modalSaveText, { color: colors.primaryText }]}>
+                    Save Opening Balance
+                  </Text>
+                </TouchableOpacity>
               </View>
-
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={handleSaveOpeningBalance}
-                style={[styles.saveBtn, { backgroundColor: '#10B981' }]}
-              >
-                <Text style={styles.saveBtnText}>
-                  Save Balance
-                </Text>
-              </TouchableOpacity>
             </View>
           </View>
         </Modal>
@@ -861,71 +873,54 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'android' ? 20 : 10,
-    paddingBottom: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'android' ? 24 : 12,
+    paddingBottom: 10,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '800',
     letterSpacing: -0.5,
   },
   headerActions: {
     flexDirection: 'row',
-    gap: 8,
-  },
-  addIncomeBtn: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 10,
-    gap: 4,
-  },
-  addIncomeBtnText: {
-    color: '#10B981',
-    fontSize: 12,
-    fontWeight: '600',
+    gap: 6,
   },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
     gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   addBtnText: {
-    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
   },
-  tabBarContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    borderRadius: 12,
-    padding: 3,
-    marginTop: 6,
-    marginBottom: 8,
+  tabContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 10,
   },
-  tabItem: {
+  segmentedControl: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    padding: 3,
+    borderWidth: 1,
+  },
+  segmentTab: {
     flex: 1,
+    paddingVertical: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 7,
-    borderRadius: 10,
+    borderRadius: 7,
   },
-  tabItemActive: {
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  tabItemText: {
-    fontSize: 12,
+  segmentTabText: {
+    fontSize: 12.5,
   },
   scrollArea: {
     flex: 1,
@@ -933,317 +928,317 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: 16,
     paddingBottom: 40,
-    gap: 12,
   },
-  heroLiquidityCard: {
-    borderRadius: 20,
+  overviewCard: {
+    borderRadius: 16,
     padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  liquidityTopRow: {
+  overviewTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 14,
   },
-  liquidityCaption: {
+  overviewCaption: {
     fontSize: 12,
     fontWeight: '500',
     marginBottom: 2,
   },
-  liquidityAmount: {
+  overviewAmount: {
     fontSize: 28,
     fontWeight: '800',
-    letterSpacing: -0.7,
+    letterSpacing: -0.8,
   },
-  openingBalancePill: {
+  openingPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4.5,
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1,
-    gap: 4,
   },
-  openingBalancePillText: {
+  openingPillText: {
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  liquidityGrid: {
+  overviewGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 10,
+    paddingTop: 12,
     borderTopWidth: 1,
   },
-  gridColumn: {
+  gridCol: {
     flex: 1,
+    alignItems: 'center',
+  },
+  gridDivider: {
+    width: 1,
+    height: '100%',
   },
   gridLabel: {
     fontSize: 11,
     fontWeight: '500',
+    marginBottom: 2,
   },
   gridValue: {
     fontSize: 13,
     fontWeight: '700',
-    marginTop: 2,
+    letterSpacing: -0.2,
   },
-  gridDivider: {
-    width: 1,
-    height: 20,
-    marginHorizontal: 4,
-  },
-  masterCard: {
-    borderRadius: 18,
+  targetCard: {
+    borderRadius: 16,
     padding: 16,
+    marginBottom: 14,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
     elevation: 1,
   },
-  masterTop: {
+  targetTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
   },
-  masterSubtitle: {
+  targetSubtitle: {
     fontSize: 12,
     fontWeight: '500',
-    marginBottom: 2,
   },
-  masterAmount: {
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: -0.4,
+  targetAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
-  masterEditBtn: {
+  targetEditBtn: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
+    borderWidth: 1,
   },
-  masterEditText: {
-    fontSize: 11,
+  targetEditText: {
+    fontSize: 11.5,
     fontWeight: '600',
   },
-  masterProgressTrack: {
+  targetTrack: {
     height: 6,
     borderRadius: 3,
     overflow: 'hidden',
     marginBottom: 8,
   },
-  masterProgressFill: {
+  targetBar: {
     height: '100%',
     borderRadius: 3,
   },
-  masterFooter: {
+  targetFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  footerSpent: {
-    fontSize: 11,
+  targetFooterText: {
+    fontSize: 11.5,
     fontWeight: '500',
   },
-  footerRemaining: {
-    fontSize: 11,
+  sectionContainer: {
+    marginTop: 4,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  sectionActionText: {
+    fontSize: 12.5,
     fontWeight: '600',
   },
-  listSection: {},
-  emptyState: {
-    borderRadius: 18,
+  emptyBox: {
+    borderRadius: 14,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    marginTop: 4,
   },
-  emptyTitle: {
-    fontSize: 14,
+  emptyBoxTitle: {
+    fontSize: 13.5,
     fontWeight: '600',
-    marginBottom: 12,
+    marginBottom: 4,
   },
-  emptyAddBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  emptyAddBtnText: {
-    color: '#FFFFFF',
+  emptyBoxSub: {
     fontSize: 12,
-    fontWeight: '600',
+    textAlign: 'center',
   },
-  incomeStreamCard: {
-    borderRadius: 16,
+  incomeItemCard: {
+    borderRadius: 14,
     padding: 14,
-    borderWidth: 1,
     marginBottom: 8,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  incomeStreamTop: {
+  incomeItemTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
-  incomeStreamLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  incomeStreamIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  incomeStreamDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  incomeStreamTitle: {
-    fontSize: 13,
+  incomeSourceTitle: {
+    fontSize: 13.5,
     fontWeight: '600',
   },
-  incomeStreamSub: {
-    fontSize: 11,
-    marginTop: 1,
-  },
-  incomeStreamVal: {
+  incomeAmountText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#10B981',
+    letterSpacing: -0.2,
   },
-  incomeStreamTrack: {
+  incomeTrack: {
     height: 5,
     borderRadius: 2.5,
     overflow: 'hidden',
+    marginBottom: 6,
   },
-  incomeStreamFill: {
+  incomeBar: {
     height: '100%',
     borderRadius: 2.5,
   },
-  modalBackdrop: {
+  incomeSubPercent: {
+    fontSize: 11,
+    fontWeight: '400',
+  },
+  modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    padding: 20,
   },
-  modalContent: {
+  modalCard: {
     width: '100%',
-    maxHeight: '90%',
-    borderRadius: 22,
+    maxWidth: 440,
+    borderRadius: 18,
     padding: 20,
     borderWidth: 1,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 18,
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
     elevation: 6,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   modalTitle: {
     fontSize: 16,
     fontWeight: '700',
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
-  modalScopeRow: {
+  modalSwitchRow: {
     flexDirection: 'row',
-    padding: 3,
     borderRadius: 10,
-    marginBottom: 10,
+    padding: 3,
+    borderWidth: 1,
+    marginBottom: 16,
   },
-  modalScopeBtn: {
+  modalSwitchBtn: {
     flex: 1,
-    paddingVertical: 6,
+    paddingVertical: 7,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 7,
   },
-  modalScopeBtnText: {
+  modalSwitchBtnText: {
+    fontSize: 12.5,
+  },
+  formGroup: {
+    marginBottom: 16,
+  },
+  formLabel: {
     fontSize: 12,
-    fontWeight: '600',
-  },
-  inputLabel: {
-    fontSize: 11,
     fontWeight: '600',
     marginBottom: 6,
-    marginTop: 8,
   },
-  categoryPickerRow: {
+  categoryPickerScroll: {
     gap: 6,
-    paddingBottom: 6,
+    paddingVertical: 2,
   },
-  catOption: {
-    paddingHorizontal: 11,
+  categoryPickChip: {
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
   },
-  catOptionText: {
+  categoryPickText: {
     fontSize: 12,
+    fontWeight: '500',
   },
-  amountInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 44,
+  modalInput: {
+    borderRadius: 10,
     borderWidth: 1,
-    marginBottom: 10,
-  },
-  currencyPrefix: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginRight: 6,
-  },
-  amountTextInput: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '700',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 8,
   },
   presetRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    marginBottom: 14,
   },
   presetChip: {
-    paddingHorizontal: 9,
-    paddingVertical: 4.5,
-    borderRadius: 7,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
     borderWidth: 1,
   },
-  presetChipText: {
+  presetText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '500',
   },
-  saveBtn: {
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
+  openingBalanceHint: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    marginBottom: 14,
   },
-  saveBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  deleteModalBtn: {
-    paddingVertical: 10,
-    alignItems: 'center',
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 10,
     marginTop: 4,
   },
-  deleteModalBtnText: {
-    color: '#EF4444',
-    fontSize: 12,
+  modalDeleteBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalDeleteText: {
+    fontSize: 13,
     fontWeight: '600',
+  },
+  modalSaveBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSaveText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
