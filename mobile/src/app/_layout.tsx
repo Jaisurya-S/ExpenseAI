@@ -29,14 +29,16 @@ export default function RootLayout() {
   useEffect(() => {
     if (!isInitialized) return;
     const userId = user?.uid || profile.uid || 'demo-user';
+    useExpenseStore.getState().setActiveUser(userId);
+
     const unsubExpenses = expenseService.subscribeUserExpenses(userId, (data) => {
-      setExpenses(data);
+      setExpenses(data, userId);
     });
     const unsubIncomes = incomeService.subscribeUserIncomes(userId, (data) => {
-      setIncomes(data);
+      setIncomes(data, userId);
     });
     const unsubBudgets = budgetService.subscribeUserBudgets(userId, (data) => {
-      setBudgets(data);
+      setBudgets(data, userId);
     });
 
     return () => {

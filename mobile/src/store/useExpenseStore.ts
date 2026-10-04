@@ -16,9 +16,26 @@ import { incomeService } from '../services/incomeService';
 import { budgetService } from '../services/budgetService';
 
 const STORE_KEY = '@xpenseai_master_expense_store';
+const AUTH_STORE_KEY = '@xpenseai_master_auth_store';
+
+const getCurrentActiveUserId = (): string => {
+  try {
+    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined' && window.localStorage) {
+      const storedAuth = window.localStorage.getItem(AUTH_STORE_KEY);
+      if (storedAuth) {
+        const parsed = JSON.parse(storedAuth);
+        if (parsed?.state?.profile?.uid) {
+          return parsed.state.profile.uid;
+        }
+      }
+    }
+  } catch {}
+  return 'demo-user';
+};
 
 // Synchronous initial load from browser localStorage for instant frame-1 rendering on web
-const getInitialPersistedState = (): { expenses: Expense[]; incomes: Income[]; budgets: Budget[] } => {
+const getInitialPersistedState = (targetUserId?: string): { expenses: Expense[]; incomes: Income[]; budgets: Budget[] } => {
+  const activeUserId = targetUserId || getCurrentActiveUserId();
   try {
     if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined' && window.localStorage) {
       // 1. Try master store key
@@ -26,53 +43,49 @@ const getInitialPersistedState = (): { expenses: Expense[]; incomes: Income[]; b
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed && parsed.state) {
-          const expenses = Array.isArray(parsed.state.expenses) ? parsed.state.expenses : [];
-          const incomes = Array.isArray(parsed.state.incomes) ? parsed.state.incomes : [];
-          const budgets = Array.isArray(parsed.state.budgets) ? parsed.state.budgets : [];
-          if (expenses.length > 0 || incomes.length > 0 || budgets.length > 0) {
-            return { expenses, incomes, budgets };
+          const allExpenses: Expense[] = Array.isArray(parsed.state.expenses) ? parsed.state.expenses : [];
+          const allIncomes: Income[] = Array.isArray(parsed.state.incomes) ? parsed.state.incomes : [];
+          const allBudgets: Budget[] = Array.isArray(parsed.state.budgets) ? parsed.state.budgets : [];
+
+          // Strictly filter by active user
+          const userExpenses = allExpenses.filter((e) => !e.userId || e.userId === activeUserId);
+          const userIncomes = allIncomes.filter((i) => !i.userId || i.userId === activeUserId);
+          const userBudgets = allBudgets.filter((b) => !b.userId || b.userId === activeUserId);
+
+          if (userExpenses.length > 0 || userIncomes.length > 0 || userBudgets.length > 0) {
+            return { expenses: userExpenses, incomes: userIncomes, budgets: userBudgets };
           }
         }
       }
 
-      // 2. Fallback check for legacy individual keys
+      // 2. Fallback check for user-scoped cached keys
       let fallbackExpenses: Expense[] = [];
       let fallbackIncomes: Income[] = [];
       let fallbackBudgets: Budget[] = [];
 
-      for (let i = 0; i < window.localStorage.length; i++) {
-        const key = window.localStorage.key(i);
-        if (key && (key.startsWith('@xpenseai_cached_expenses_') || key === '@xpenseai_stored_expenses')) {
-          try {
-            const data = JSON.parse(window.localStorage.getItem(key) || '[]');
-            if (Array.isArray(data)) fallbackExpenses = [...fallbackExpenses, ...data];
-          } catch {}
-        }
-        if (key && (key.startsWith('@xpenseai_cached_incomes_') || key === '@xpenseai_stored_incomes')) {
-          try {
-            const data = JSON.parse(window.localStorage.getItem(key) || '[]');
-            if (Array.isArray(data)) fallbackIncomes = [...fallbackIncomes, ...data];
-          } catch {}
-        }
-        if (key && (key.startsWith('@xpenseai_cached_budgets_') || key === '@xpenseai_stored_budgets')) {
-          try {
-            const data = JSON.parse(window.localStorage.getItem(key) || '[]');
-            if (Array.isArray(data)) fallbackBudgets = [...fallbackBudgets, ...data];
-          } catch {}
-        }
-      }
+      const userExpKey = `@xpenseai_cached_expenses_${activeUserId}`;
+      const userIncKey = `@xpenseai_cached_incomes_${activeUserId}`;
+      const userBudKey = `@xpenseai_cached_budgets_${activeUserId}`;
 
-      const expMap = new Map<string, Expense>();
-      fallbackExpenses.forEach((e) => expMap.set(e.id, e));
-      const incMap = new Map<string, Income>();
-      fallbackIncomes.forEach((i) => incMap.set(i.id, i));
-      const budMap = new Map<string, Budget>();
-      fallbackBudgets.forEach((b) => budMap.set(b.id, b));
+      try {
+        const d = JSON.parse(window.localStorage.getItem(userExpKey) || '[]');
+        if (Array.isArray(d)) fallbackExpenses = d;
+      } catch {}
+
+      try {
+        const d = JSON.parse(window.localStorage.getItem(userIncKey) || '[]');
+        if (Array.isArray(d)) fallbackIncomes = d;
+      } catch {}
+
+      try {
+        const d = JSON.parse(window.localStorage.getItem(userBudKey) || '[]');
+        if (Array.isArray(d)) fallbackBudgets = d;
+      } catch {}
 
       return {
-        expenses: Array.from(expMap.values()),
-        incomes: Array.from(incMap.values()),
-        budgets: Array.from(budMap.values()),
+        expenses: fallbackExpenses,
+        incomes: fallbackIncomes,
+        budgets: fallbackBudgets,
       };
     }
   } catch {}
@@ -106,6 +119,7 @@ interface ExpenseFilterState {
 }
 
 interface ExpenseStoreState {
+  activeUserId: string;
   expenses: Expense[];
   incomes: Income[];
   budgets: Budget[];
@@ -117,9 +131,11 @@ interface ExpenseStoreState {
   pendingScanResult: AIParseResult | null;
 
   // Actions
-  setExpenses: (expenses: Expense[]) => void;
-  setIncomes: (incomes: Income[]) => void;
-  setBudgets: (budgets: Budget[]) => void;
+  setActiveUser: (userId: string) => void;
+  clearStore: () => void;
+  setExpenses: (expenses: Expense[], forUserId?: string) => void;
+  setIncomes: (incomes: Income[], forUserId?: string) => void;
+  setBudgets: (budgets: Budget[], forUserId?: string) => void;
   setSearchQuery: (query: string) => void;
   setSelectedType: (type: 'ALL' | 'expense' | 'income') => void;
   setSelectedCategory: (cat: ExpenseCategory | 'ALL') => void;
@@ -160,11 +176,13 @@ interface ExpenseStoreState {
 }
 
 const currentYearMonth = new Date().toISOString().slice(0, 7);
-const initialData = getInitialPersistedState();
+const initialUserId = getCurrentActiveUserId();
+const initialData = getInitialPersistedState(initialUserId);
 
 export const useExpenseStore = create<ExpenseStoreState>()(
   persist(
     (set, get) => ({
+      activeUserId: initialUserId,
       expenses: initialData.expenses,
       incomes: initialData.incomes,
       budgets: initialData.budgets,
@@ -183,40 +201,68 @@ export const useExpenseStore = create<ExpenseStoreState>()(
       pendingVoiceResult: null,
       pendingScanResult: null,
 
-      setExpenses: (incomingExpenses) => {
-        if (Array.isArray(incomingExpenses) && incomingExpenses.length > 0) {
-          const incomingIds = new Set(incomingExpenses.map((e) => e.id));
-          const localOnly = get().expenses.filter(
-            (e) => !incomingIds.has(e.id)
-          );
-          const merged = [...incomingExpenses, ...localOnly];
-          set({ expenses: merged, isLoading: false });
-          syncWebStorage({ expenses: merged });
-        } else {
-          set({ isLoading: false });
-        }
+      setActiveUser: (userId) => {
+        const targetUserId = userId || 'demo-user';
+        if (get().activeUserId === targetUserId) return;
+        const loaded = getInitialPersistedState(targetUserId);
+        set({
+          activeUserId: targetUserId,
+          expenses: loaded.expenses,
+          incomes: loaded.incomes,
+          budgets: loaded.budgets,
+        });
+        syncWebStorage({
+          expenses: loaded.expenses,
+          incomes: loaded.incomes,
+          budgets: loaded.budgets,
+        });
       },
 
-      setIncomes: (incomingIncomes) => {
-        if (Array.isArray(incomingIncomes) && incomingIncomes.length > 0) {
-          const incomingIds = new Set(incomingIncomes.map((i) => i.id));
-          const localOnly = get().incomes.filter(
-            (i) => !incomingIds.has(i.id)
-          );
-          const merged = [...incomingIncomes, ...localOnly];
-          set({ incomes: merged });
-          syncWebStorage({ incomes: merged });
-        }
+      clearStore: () => {
+        set({ expenses: [], incomes: [], budgets: [] });
+        syncWebStorage({ expenses: [], incomes: [], budgets: [] });
       },
 
-      setBudgets: (incomingBudgets) => {
-        if (Array.isArray(incomingBudgets) && incomingBudgets.length > 0) {
-          const incomingIds = new Set(incomingBudgets.map((b) => b.id));
-          const localOnly = get().budgets.filter((b) => !incomingIds.has(b.id));
-          const merged = [...incomingBudgets, ...localOnly];
-          set({ budgets: merged });
-          syncWebStorage({ budgets: merged });
-        }
+      setExpenses: (incomingExpenses, forUserId) => {
+        const targetUserId = forUserId || get().activeUserId || 'demo-user';
+        const validIncoming = Array.isArray(incomingExpenses)
+          ? incomingExpenses.filter((e) => !e.userId || e.userId === targetUserId)
+          : [];
+        const incomingIds = new Set(validIncoming.map((e) => e.id));
+        const localOnly = get().expenses.filter(
+          (e) => (e.userId === targetUserId || !e.userId) && !incomingIds.has(e.id)
+        );
+        const merged = [...validIncoming, ...localOnly];
+        set({ expenses: merged, isLoading: false });
+        syncWebStorage({ expenses: merged });
+      },
+
+      setIncomes: (incomingIncomes, forUserId) => {
+        const targetUserId = forUserId || get().activeUserId || 'demo-user';
+        const validIncoming = Array.isArray(incomingIncomes)
+          ? incomingIncomes.filter((i) => !i.userId || i.userId === targetUserId)
+          : [];
+        const incomingIds = new Set(validIncoming.map((i) => i.id));
+        const localOnly = get().incomes.filter(
+          (i) => (i.userId === targetUserId || !i.userId) && !incomingIds.has(i.id)
+        );
+        const merged = [...validIncoming, ...localOnly];
+        set({ incomes: merged });
+        syncWebStorage({ incomes: merged });
+      },
+
+      setBudgets: (incomingBudgets, forUserId) => {
+        const targetUserId = forUserId || get().activeUserId || 'demo-user';
+        const validIncoming = Array.isArray(incomingBudgets)
+          ? incomingBudgets.filter((b) => !b.userId || b.userId === targetUserId)
+          : [];
+        const incomingIds = new Set(validIncoming.map((b) => b.id));
+        const localOnly = get().budgets.filter(
+          (b) => (b.userId === targetUserId || !b.userId) && !incomingIds.has(b.id)
+        );
+        const merged = [...validIncoming, ...localOnly];
+        set({ budgets: merged });
+        syncWebStorage({ budgets: merged });
       },
 
       setSearchQuery: (query) =>

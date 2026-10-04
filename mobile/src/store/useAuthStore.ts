@@ -12,6 +12,7 @@ import {
   onAuthStateChanged,
   User,
 } from 'firebase/auth';
+import { useExpenseStore } from './useExpenseStore';
 
 interface AuthState {
   user: User | null;
@@ -186,6 +187,7 @@ export const useAuthStore = create<AuthState>()(
       displayName: 'Alex Morgan',
       email: 'alex.morgan@xpenseai.com',
     };
+    useExpenseStore.getState().setActiveUser('demo-user');
     set({
       user: {
         uid: 'demo-user',
@@ -215,20 +217,31 @@ export const useAuthStore = create<AuthState>()(
   loginWithEmail: async (email: string, pass: string) => {
     set({ isLoading: true });
     try {
-      await signInWithEmailAndPassword(auth, email, pass);
-      set({ isLoading: false });
+      const res = await signInWithEmailAndPassword(auth, email, pass);
+      const userUid = res.user.uid;
+      const loadedProfile: UserProfile = {
+        ...get().profile,
+        uid: userUid,
+        email: res.user.email || email,
+        displayName: res.user.displayName || email.split('@')[0] || 'User',
+      };
+      useExpenseStore.getState().setActiveUser(userUid);
+      set({ user: res.user, profile: loadedProfile, isLoading: false });
+      await safeStorage.setItem('@xpenseai_user_profile', JSON.stringify(loadedProfile));
     } catch (err: any) {
       if (
         err?.code === 'auth/admin-restricted-operation' ||
         err?.code === 'auth/operation-not-allowed'
       ) {
         // Fallback local session if email provider is disabled in Firebase Console
+        const localUid = 'user-' + email.replace(/[^a-zA-Z0-9]/g, '-');
         const localProfile: UserProfile = {
           ...get().profile,
-          uid: 'user-' + email.replace(/[^a-zA-Z0-9]/g, '-'),
+          uid: localUid,
           email,
           displayName: email.split('@')[0] || 'User',
         };
+        useExpenseStore.getState().setActiveUser(localUid);
         set({
           user: {
             uid: localProfile.uid,
@@ -262,6 +275,7 @@ export const useAuthStore = create<AuthState>()(
           displayName: u.displayName || u.email?.split('@')[0] || 'Google User',
           photoURL: u.photoURL || null,
         };
+        useExpenseStore.getState().setActiveUser(u.uid);
         set({
           user: u,
           isLoading: false,
@@ -290,6 +304,7 @@ export const useAuthStore = create<AuthState>()(
           displayName: firebaseUser?.displayName || 'Google User',
         };
 
+        useExpenseStore.getState().setActiveUser(uid);
         set({
           user: firebaseUser || ({
             uid,
@@ -308,12 +323,14 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: false });
         throw err;
       }
+      const fallbackUid = 'google-' + Math.random().toString(36).substring(2, 9);
       const fallbackProfile: UserProfile = {
         ...get().profile,
-        uid: 'google-' + Math.random().toString(36).substring(2, 9),
+        uid: fallbackUid,
         email: 'google.user@gmail.com',
         displayName: 'Google User',
       };
+      useExpenseStore.getState().setActiveUser(fallbackUid);
       set({
         user: {
           uid: fallbackProfile.uid,
@@ -338,6 +355,9 @@ export const useAuthStore = create<AuthState>()(
         email: res.user.email || email,
         displayName: name || res.user.email?.split('@')[0] || 'User',
       };
+      // Brand new user starts with completely clean store
+      useExpenseStore.getState().clearStore();
+      useExpenseStore.getState().setActiveUser(res.user.uid);
       set({
         user: res.user,
         isLoading: false,
@@ -350,12 +370,15 @@ export const useAuthStore = create<AuthState>()(
         err?.code === 'auth/operation-not-allowed'
       ) {
         // Fallback local session if email provider is disabled in Firebase Console
+        const localUid = 'user-' + email.replace(/[^a-zA-Z0-9]/g, '-');
         const localProfile: UserProfile = {
           ...get().profile,
-          uid: 'user-' + email.replace(/[^a-zA-Z0-9]/g, '-'),
+          uid: localUid,
           email,
           displayName: name || email.split('@')[0] || 'User',
         };
+        useExpenseStore.getState().clearStore();
+        useExpenseStore.getState().setActiveUser(localUid);
         set({
           user: {
             uid: localProfile.uid,
@@ -380,7 +403,10 @@ export const useAuthStore = create<AuthState>()(
     } catch (e) {
       // ignore
     }
-    set({ user: null });
+    useExpenseStore.getState().clearStore();
+    set({ user: null, profile: DEFAULT_PROFILE });
+    await safeStorage.removeItem('@xpenseai_user_profile');
+    await safeStorage.removeItem('@xpenseai_master_auth_store');
   },
     }),
     {

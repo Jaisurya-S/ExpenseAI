@@ -29,15 +29,17 @@ export const budgetService = {
 
     // 1. Instantly load local cache so budgets are immediately visible
     (async () => {
-      let cached = await safeStorage.getItem(cacheKey);
-      if (!cached) cached = await safeStorage.getItem(UNIVERSAL_KEY);
+      const cached = await safeStorage.getItem(cacheKey);
       if (cached) {
         try {
           const parsed: Budget[] = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            onData(parsed);
+          if (Array.isArray(parsed)) {
+            const userSpecific = parsed.filter((b) => !b.userId || b.userId === activeUserId);
+            onData(userSpecific);
           }
         } catch {}
+      } else {
+        onData([]);
       }
     })();
 
@@ -77,10 +79,10 @@ export const budgetService = {
             if (deletedStr) deletedIds = new Set(JSON.parse(deletedStr));
           } catch {}
 
-          const validRemoteItems = remoteItems.filter((item) => !deletedIds.has(item.id));
+          const validRemoteItems = remoteItems.filter((item) => (item.userId === activeUserId) && !deletedIds.has(item.id));
           const remoteIdSet = new Set(validRemoteItems.map((r) => r.id));
           const unsyncedLocalItems = localItems.filter(
-            (local) => !deletedIds.has(local.id) && !remoteIdSet.has(local.id)
+            (local) => (local.userId === activeUserId || !local.userId) && !deletedIds.has(local.id) && !remoteIdSet.has(local.id)
           );
 
           // Merge remote + local

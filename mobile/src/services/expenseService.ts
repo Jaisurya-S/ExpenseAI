@@ -34,15 +34,17 @@ export const expenseService = {
 
     // 1. Instantly load local cache so data is ALWAYS immediately visible on reload
     (async () => {
-      let cached = await safeStorage.getItem(cacheKey);
-      if (!cached) cached = await safeStorage.getItem(UNIVERSAL_KEY);
+      const cached = await safeStorage.getItem(cacheKey);
       if (cached) {
         try {
           const parsed: Expense[] = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            onData(parsed);
+          if (Array.isArray(parsed)) {
+            const userSpecific = parsed.filter((e) => !e.userId || e.userId === activeUserId);
+            onData(userSpecific);
           }
         } catch {}
+      } else {
+        onData([]);
       }
     })();
 
@@ -89,12 +91,12 @@ export const expenseService = {
           } catch {}
 
           // Filter out deleted items from remote
-          const validRemoteItems = remoteItems.filter((item) => !deletedIds.has(item.id));
+          const validRemoteItems = remoteItems.filter((item) => (item.userId === activeUserId) && !deletedIds.has(item.id));
 
           // Retain any locally saved items that are not yet in Firestore (e.g. exp- temp ids or unsynced offline items)
           const remoteIdSet = new Set(validRemoteItems.map((r) => r.id));
           const unsyncedLocalItems = localItems.filter(
-            (local) => !deletedIds.has(local.id) && (!remoteIdSet.has(local.id) || local.id.startsWith('exp-') || local.id.startsWith('local-'))
+            (local) => (local.userId === activeUserId || !local.userId) && !deletedIds.has(local.id) && (!remoteIdSet.has(local.id) || local.id.startsWith('exp-') || local.id.startsWith('local-'))
           );
 
           // Merge: remote items + unsynced local items (avoiding duplicates)
