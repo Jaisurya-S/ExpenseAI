@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProfile } from '../types';
 import safeStorage from '../services/safeStorage';
 import { Platform } from 'react-native';
@@ -42,12 +44,14 @@ const DEFAULT_PROFILE: UserProfile = {
   createdAt: new Date().toISOString(),
 };
 
-export const useAuthStore = create<AuthState>((set, get) => ({
-  user: null,
-  profile: DEFAULT_PROFILE,
-  isLoading: false,
-  isInitialized: false,
-  themeMode: 'dark',
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      profile: DEFAULT_PROFILE,
+      isLoading: false,
+      isInitialized: false,
+      themeMode: 'dark',
 
   initAuth: () => {
     let profileLoaded = false;
@@ -349,4 +353,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     set({ user: null });
   },
-}));
+    }),
+    {
+      name: '@xpenseai_master_auth_store',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        profile: state.profile,
+        themeMode: state.themeMode,
+      }),
+    }
+  )
+);
+
