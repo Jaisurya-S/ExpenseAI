@@ -188,20 +188,26 @@ export default function HomeScreen() {
       >
         {/* Top Header Bar with Brand Logo & User Profile */}
         <View style={styles.topBar}>
-          <View
-            style={[
-              styles.headerLogoContainer,
-              {
-                backgroundColor: isDark ? '#FFFFFF' : '#FFFFFF',
-                borderColor: colors.cardBorder,
-              },
-            ]}
-          >
-            <Image
-              source={require('../../../assets/images/logo.png')}
-              style={styles.headerLogoImage}
-              resizeMode="contain"
-            />
+          <View style={styles.brandRow}>
+            <View
+              style={[
+                styles.headerLogoContainer,
+                {
+                  backgroundColor: '#FFFFFF',
+                  borderColor: colors.cardBorder,
+                },
+              ]}
+            >
+              <Image
+                source={require('../../../assets/images/logo.png')}
+                style={styles.headerLogoImage}
+                resizeMode="contain"
+              />
+            </View>
+            <View style={styles.brandTextCol}>
+              <Text style={[styles.brandTitleText, { color: colors.text }]}>ExpenseAI</Text>
+              <Text style={[styles.brandSubtitleText, { color: colors.textMuted }]}>Smart Finance</Text>
+            </View>
           </View>
 
           <TouchableOpacity
@@ -398,19 +404,44 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   headerLogoContainer: {
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    width: 38,
+    height: 38,
+    borderRadius: 11,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   headerLogoImage: {
-    width: 120,
+    width: 32,
     height: 32,
+    borderRadius: 8,
+  },
+  brandTextCol: {
+    justifyContent: 'center',
+  },
+  brandTitleText: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+    lineHeight: 18,
+  },
+  brandSubtitleText: {
+    fontSize: 10,
+    fontWeight: '500',
+    letterSpacing: 0.1,
+    lineHeight: 13,
   },
   userInfoTextCol: {
     alignItems: 'flex-end',

@@ -24,7 +24,37 @@ import {
   Calendar,
   FileText,
   Trash2,
+  Briefcase,
+  Laptop,
+  TrendingUp,
+  Gift,
+  MoreHorizontal,
+  Smartphone,
+  CreditCard,
+  Banknote,
+  Wallet,
 } from '../../components/ui/icons';
+
+const SourceIconMap: Record<string, React.FC<{ size?: number; color?: string; style?: any }>> = {
+  Salary: Briefcase,
+  Freelance: Laptop,
+  Business: Building2,
+  Investment: TrendingUp,
+  Rental: Building2,
+  Gift: Gift,
+  Other: MoreHorizontal,
+};
+
+const PaymentIconMap: Record<string, React.FC<{ size?: number; color?: string; style?: any }>> = {
+  UPI: Smartphone,
+  Card: CreditCard,
+  Cash: Banknote,
+  NetBanking: Building2,
+  Wallet: Wallet,
+  Other: MoreHorizontal,
+};
+
+const AMOUNT_PRESETS = [1000, 5000, 10000, 25000, 50000];
 
 export default function AddIncomeModal() {
   const router = useRouter();
@@ -133,12 +163,12 @@ export default function AddIncomeModal() {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <View style={styles.container}>
-        {/* Header */}
+        {/* Top Header */}
         <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>
             {isEditing ? 'Edit Income' : 'Add Income'}
           </Text>
-          <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
+          <TouchableOpacity onPress={handleClose} style={styles.closeBtn} activeOpacity={0.7}>
             <X size={18} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
@@ -147,268 +177,324 @@ export default function AddIncomeModal() {
           style={styles.scrollArea}
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {/* Main Hero Amount Card */}
           <View
             style={[
-              styles.card,
+              styles.heroAmountCard,
               {
                 backgroundColor: colors.card,
                 borderColor: colors.cardBorder,
-                shadowColor: colors.cardShadow,
               },
             ]}
           >
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>INCOME AMOUNT</Text>
-            <View style={styles.amountInputRow}>
-              <Text style={[styles.amountCurrency, { color: colors.success }]}>+{currency}</Text>
+            <Text style={[styles.sectionCaption, { color: colors.textMuted }]}>INCOME AMOUNT</Text>
+            <View style={styles.amountHeroRow}>
+              <Text style={[styles.amountHeroCurrency, { color: colors.success }]}>+{currency}</Text>
               <TextInput
-                style={[styles.amountInput, { color: colors.text }]}
+                style={[
+                  styles.amountHeroInput,
+                  {
+                    color: colors.text,
+                    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
+                  },
+                ]}
                 keyboardType="decimal-pad"
                 placeholder="0"
                 placeholderTextColor={colors.textMuted}
                 value={amount}
                 onChangeText={setAmount}
-                autoFocus
+                autoFocus={!isEditing}
               />
+            </View>
+
+            {/* Quick Amount Preset Chips */}
+            <View style={styles.presetsContainer}>
+              {AMOUNT_PRESETS.map((preset) => (
+                <TouchableOpacity
+                  key={preset}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    const currentVal = parseFloat(amount) || 0;
+                    setAmount((currentVal + preset).toString());
+                  }}
+                  style={[
+                    styles.presetPill,
+                    {
+                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+                      borderColor: colors.cardBorder,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.presetPillText, { color: colors.textSecondary }]}>
+                    +{currency}{preset >= 1000 ? `${preset / 1000}k` : preset}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
 
-          {/* Description */}
+          {/* Unified Form Container */}
           <View
             style={[
-              styles.card,
+              styles.unifiedFormCard,
               {
                 backgroundColor: colors.card,
                 borderColor: colors.cardBorder,
-                shadowColor: colors.cardShadow,
               },
             ]}
           >
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>DESCRIPTION / NOTE</Text>
-            <View
-              style={[
-                styles.inputRow,
-                {
-                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
-                  borderColor: colors.cardBorder,
-                },
-              ]}
-            >
-              <FileText size={15} color={colors.textMuted} style={{ marginRight: 8 }} />
-              <TextInput
-                style={[styles.textInput, { color: colors.text }]}
-                placeholder="e.g. Monthly Salary, Freelance project, Dividend..."
-                placeholderTextColor={colors.textMuted}
-                value={description}
-                onChangeText={setDescription}
-              />
+            {/* Description Row */}
+            <View style={styles.formRow}>
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+                DESCRIPTION / NOTE
+              </Text>
+              <View
+                style={[
+                  styles.inputFieldBox,
+                  {
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                    borderColor: colors.cardBorder,
+                  },
+                ]}
+              >
+                <FileText size={15} color={colors.textMuted} style={styles.inputLeftIcon} />
+                <TextInput
+                  style={[
+                    styles.textInputField,
+                    {
+                      color: colors.text,
+                      ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
+                    },
+                  ]}
+                  placeholder="e.g. Monthly Salary, Freelance project, Dividend..."
+                  placeholderTextColor={colors.textMuted}
+                  value={description}
+                  onChangeText={setDescription}
+                />
+              </View>
             </View>
-          </View>
 
-          {/* Payer / Client */}
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.cardBorder,
-                shadowColor: colors.cardShadow,
-              },
-            ]}
-          >
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-              PAYER / EMPLOYER / SOURCE (OPTIONAL)
-            </Text>
-            <View
-              style={[
-                styles.inputRow,
-                {
-                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
-                  borderColor: colors.cardBorder,
-                },
-              ]}
-            >
-              <Building2 size={15} color={colors.textMuted} style={{ marginRight: 8 }} />
-              <TextInput
-                style={[styles.textInput, { color: colors.text }]}
-                placeholder="e.g. Google, Client, Bank, Self..."
-                placeholderTextColor={colors.textMuted}
-                value={payer}
-                onChangeText={setPayer}
-              />
+            {/* Payer / Client Row */}
+            <View style={styles.formRow}>
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+                PAYER / SOURCE (OPTIONAL)
+              </Text>
+              <View
+                style={[
+                  styles.inputFieldBox,
+                  {
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                    borderColor: colors.cardBorder,
+                  },
+                ]}
+              >
+                <Building2 size={15} color={colors.textMuted} style={styles.inputLeftIcon} />
+                <TextInput
+                  style={[
+                    styles.textInputField,
+                    {
+                      color: colors.text,
+                      ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
+                    },
+                  ]}
+                  placeholder="e.g. Google, Client, Bank, Company..."
+                  placeholderTextColor={colors.textMuted}
+                  value={payer}
+                  onChangeText={setPayer}
+                />
+              </View>
             </View>
-          </View>
 
-          {/* Income Source Chips */}
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.cardBorder,
-                shadowColor: colors.cardShadow,
-              },
-            ]}
-          >
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>INCOME STREAM</Text>
-            <View style={styles.sourceGrid}>
-              {ALL_INCOME_SOURCES.map((src) => {
-                const isSelected = source === src;
-                return (
-                  <TouchableOpacity
-                    key={src}
-                    onPress={() => setSource(src)}
-                    style={[
-                      styles.sourceChip,
-                      {
-                        backgroundColor: isSelected ? colors.primary : (isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'),
-                        borderColor: isSelected ? colors.primary : colors.cardBorder,
-                      },
-                    ]}
-                  >
-                    <Text
+            {/* Income Stream Category Chips */}
+            <View style={styles.formRow}>
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+                INCOME STREAM
+              </Text>
+              <View style={styles.sourceGrid}>
+                {ALL_INCOME_SOURCES.map((src) => {
+                  const isSelected = source === src;
+                  const IconComp = SourceIconMap[src] || MoreHorizontal;
+                  return (
+                    <TouchableOpacity
+                      key={src}
+                      activeOpacity={0.7}
+                      onPress={() => setSource(src)}
                       style={[
-                        styles.sourceChipText,
+                        styles.sourceTile,
                         {
-                          color: isSelected ? colors.primaryText : colors.text,
-                          fontWeight: isSelected ? '700' : '500',
+                          backgroundColor: isSelected
+                            ? colors.primary
+                            : isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                          borderColor: isSelected ? colors.primary : colors.cardBorder,
                         },
                       ]}
                     >
-                      {src}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+                      <IconComp
+                        size={13}
+                        color={isSelected ? colors.primaryText : colors.textSecondary}
+                      />
+                      <Text
+                        style={[
+                          styles.sourceTileText,
+                          {
+                            color: isSelected ? colors.primaryText : colors.text,
+                            fontWeight: isSelected ? '700' : '500',
+                          },
+                        ]}
+                      >
+                        {src}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
-          </View>
 
-          {/* Date Picker */}
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.cardBorder,
-                shadowColor: colors.cardShadow,
-              },
-            ]}
-          >
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>DATE</Text>
-            <View style={styles.dateRow}>
-              <TouchableOpacity
-                onPress={() => setDateOffset(0)}
-                style={[
-                  styles.quickDateBtn,
-                  {
-                    backgroundColor: isToday ? colors.primary : (isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'),
-                    borderColor: isToday ? colors.primary : colors.cardBorder,
-                  },
-                ]}
-              >
-                <Text
+            {/* Date Selector Row */}
+            <View style={styles.formRow}>
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+                TRANSACTION DATE
+              </Text>
+              <View style={styles.dateSelectorRow}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setDateOffset(0)}
                   style={[
-                    styles.quickDateText,
-                    { color: isToday ? colors.primaryText : colors.text },
+                    styles.dateOptionPill,
+                    {
+                      backgroundColor: isToday
+                        ? colors.primary
+                        : isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                      borderColor: isToday ? colors.primary : colors.cardBorder,
+                    },
                   ]}
                 >
-                  Today
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => setDateOffset(1)}
-                style={[
-                  styles.quickDateBtn,
-                  {
-                    backgroundColor: isYesterday ? colors.primary : (isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'),
-                    borderColor: isYesterday ? colors.primary : colors.cardBorder,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.quickDateText,
-                    { color: isYesterday ? colors.primaryText : colors.text },
-                  ]}
-                >
-                  Yesterday
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => setIsDatePickerVisible(true)}
-                style={[
-                  styles.customDateBtn,
-                  {
-                    backgroundColor: !isToday && !isYesterday ? colors.primary : (isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'),
-                    borderColor: !isToday && !isYesterday ? colors.primary : colors.cardBorder,
-                  },
-                ]}
-              >
-                <Calendar size={13} color={!isToday && !isYesterday ? colors.primaryText : colors.text} style={{ marginRight: 4 }} />
-                <Text
-                  style={[
-                    styles.quickDateText,
-                    { color: !isToday && !isYesterday ? colors.primaryText : colors.text },
-                  ]}
-                >
-                  {date}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Payment Method */}
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.cardBorder,
-                shadowColor: colors.cardShadow,
-              },
-            ]}
-          >
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>PAYMENT METHOD</Text>
-            <View style={styles.paymentMethodRow}>
-              {PAYMENT_METHODS.map((method) => {
-                const isSelected = paymentMethod === method.id;
-                return (
-                  <TouchableOpacity
-                    key={method.id}
-                    onPress={() => setPaymentMethod(method.id)}
+                  <Text
                     style={[
-                      styles.methodChip,
+                      styles.dateOptionText,
                       {
-                        backgroundColor: isSelected ? colors.primary : (isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'),
-                        borderColor: isSelected ? colors.primary : colors.cardBorder,
+                        color: isToday ? colors.primaryText : colors.text,
+                        fontWeight: isToday ? '700' : '500',
                       },
                     ]}
                   >
-                    <Text
+                    Today
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setDateOffset(1)}
+                  style={[
+                    styles.dateOptionPill,
+                    {
+                      backgroundColor: isYesterday
+                        ? colors.primary
+                        : isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                      borderColor: isYesterday ? colors.primary : colors.cardBorder,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dateOptionText,
+                      {
+                        color: isYesterday ? colors.primaryText : colors.text,
+                        fontWeight: isYesterday ? '700' : '500',
+                      },
+                    ]}
+                  >
+                    Yesterday
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setIsDatePickerVisible(true)}
+                  style={[
+                    styles.dateCustomPill,
+                    {
+                      backgroundColor: !isToday && !isYesterday
+                        ? colors.primary
+                        : isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                      borderColor: !isToday && !isYesterday ? colors.primary : colors.cardBorder,
+                    },
+                  ]}
+                >
+                  <Calendar
+                    size={13}
+                    color={!isToday && !isYesterday ? colors.primaryText : colors.text}
+                    style={{ marginRight: 5 }}
+                  />
+                  <Text
+                    style={[
+                      styles.dateOptionText,
+                      {
+                        color: !isToday && !isYesterday ? colors.primaryText : colors.text,
+                        fontWeight: !isToday && !isYesterday ? '700' : '500',
+                      },
+                    ]}
+                  >
+                    {date}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Payment / Receipt Method */}
+            <View style={styles.formRowLast}>
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+                RECEIVED VIA
+              </Text>
+              <View style={styles.paymentMethodGrid}>
+                {PAYMENT_METHODS.map((method) => {
+                  const isSelected = paymentMethod === method.id;
+                  const IconComp = PaymentIconMap[method.id] || MoreHorizontal;
+                  return (
+                    <TouchableOpacity
+                      key={method.id}
+                      activeOpacity={0.7}
+                      onPress={() => setPaymentMethod(method.id)}
                       style={[
-                        styles.methodChipText,
+                        styles.paymentPill,
                         {
-                          color: isSelected ? colors.primaryText : colors.text,
-                          fontWeight: isSelected ? '700' : '500',
+                          backgroundColor: isSelected
+                            ? colors.primary
+                            : isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+                          borderColor: isSelected ? colors.primary : colors.cardBorder,
                         },
                       ]}
                     >
-                      {method.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+                      <IconComp
+                        size={13}
+                        color={isSelected ? colors.primaryText : colors.textSecondary}
+                        style={{ marginRight: 5 }}
+                      />
+                      <Text
+                        style={[
+                          styles.paymentPillText,
+                          {
+                            color: isSelected ? colors.primaryText : colors.text,
+                            fontWeight: isSelected ? '700' : '500',
+                          },
+                        ]}
+                      >
+                        {method.id}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
           </View>
         </ScrollView>
 
-        {/* Bottom CTA Submit */}
+        {/* Sticky Bottom Save Action Bar */}
         <View
           style={[
-            styles.bottomBar,
+            styles.bottomActionContainer,
             {
               backgroundColor: colors.card,
               borderTopColor: colors.cardBorder,
@@ -434,13 +520,13 @@ export default function AddIncomeModal() {
             activeOpacity={0.85}
             onPress={handleSaveIncome}
             disabled={isSaving}
-            style={[styles.submitBtn, { backgroundColor: colors.primary }]}
+            style={[styles.saveIncomeBtn, { backgroundColor: colors.primary }]}
           >
             {isSaving ? (
               <ActivityIndicator color={colors.primaryText} size="small" />
             ) : (
-              <Text style={[styles.submitBtnText, { color: colors.primaryText }]}>
-                {isEditing ? 'Update Income' : 'Save Income'}
+              <Text style={[styles.saveIncomeBtnText, { color: colors.primaryText }]}>
+                {isEditing ? 'Update Income' : `Save Income • +${currency}${amount || '0'}`}
               </Text>
             )}
           </TouchableOpacity>
@@ -472,7 +558,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
   },
   headerTitle: {
@@ -489,71 +575,119 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: 16,
     paddingVertical: 14,
-    gap: 10,
-    paddingBottom: 40,
+    gap: 12,
+    paddingBottom: 30,
   },
-  card: {
-    borderRadius: 14,
-    padding: 14,
+  heroAmountCard: {
+    borderRadius: 18,
+    padding: 18,
+    alignItems: 'center',
     borderWidth: 1,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.03,
-    shadowRadius: 3,
+    shadowRadius: 4,
     elevation: 1,
   },
-  inputLabel: {
+  sectionCaption: {
     fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.4,
-    marginBottom: 8,
+    letterSpacing: 0.6,
+    marginBottom: 6,
   },
-  amountInputRow: {
+  amountHeroRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
   },
-  amountCurrency: {
-    fontSize: 24,
+  amountHeroCurrency: {
+    fontSize: 32,
     fontWeight: '700',
     marginRight: 4,
   },
-  amountInput: {
-    flex: 1,
-    fontSize: 32,
+  amountHeroInput: {
+    fontSize: 42,
     fontWeight: '800',
-    letterSpacing: -0.5,
+    letterSpacing: -1,
+    minWidth: 100,
+    textAlign: 'center',
     padding: 0,
   },
-  inputRow: {
+  presetsContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  presetPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1,
-    paddingHorizontal: 10,
-    height: 40,
   },
-  textInput: {
+  presetPillText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  unifiedFormCard: {
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  formRow: {
+    marginBottom: 16,
+  },
+  formRowLast: {
+    marginBottom: 0,
+  },
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    marginBottom: 6,
+  },
+  inputFieldBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    height: 42,
+  },
+  inputLeftIcon: {
+    marginRight: 8,
+  },
+  textInputField: {
     flex: 1,
     fontSize: 13,
+    height: '100%',
   },
   sourceGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
   },
-  sourceChip: {
+  sourceTile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 8,
     borderWidth: 1,
   },
-  sourceChipText: {
+  sourceTileText: {
     fontSize: 12,
   },
-  dateRow: {
+  dateSelectorRow: {
     flexDirection: 'row',
     gap: 6,
   },
-  quickDateBtn: {
+  dateOptionPill: {
     flex: 1,
     paddingVertical: 8,
     borderRadius: 8,
@@ -561,8 +695,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  customDateBtn: {
-    flex: 1.2,
+  dateCustomPill: {
+    flex: 1.3,
     flexDirection: 'row',
     paddingVertical: 8,
     borderRadius: 8,
@@ -570,25 +704,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  quickDateText: {
+  dateOptionText: {
     fontSize: 12,
-    fontWeight: '600',
   },
-  paymentMethodRow: {
+  paymentMethodGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
   },
-  methodChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  paymentPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     borderRadius: 8,
     borderWidth: 1,
   },
-  methodChipText: {
+  paymentPillText: {
     fontSize: 12,
   },
-  bottomBar: {
+  bottomActionContainer: {
     flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -596,22 +731,23 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   deleteBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
+    width: 46,
+    height: 46,
+    borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  submitBtn: {
+  saveIncomeBtn: {
     flex: 1,
-    borderRadius: 10,
-    height: 44,
+    borderRadius: 12,
+    height: 46,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  submitBtnText: {
+  saveIncomeBtnText: {
     fontSize: 14,
     fontWeight: '700',
+    letterSpacing: -0.2,
   },
 });
