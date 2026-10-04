@@ -4,7 +4,7 @@
 
 ![ExpenseAI Logo](mobile/assets/images/logo.png)
 
-**Your Intelligent Personal CFO powered by Voice AI, Receipt OCR, and Automated WhatsApp Digests.**
+**Your Intelligent Personal CFO powered by Voice AI, Receipt OCR, and Smart Budget Analytics.**
 
 [![Live Web App](https://img.shields.io/badge/Live_Demo-https%3A%2F%2Fexpense--94f00.web.app-10B981?style=for-the-badge&logo=googlechrome&logoColor=white)](https://expense-94f00.web.app)
 [![React Native](https://img.shields.io/badge/React_Native-Expo_v52-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactnative.dev/)
@@ -30,55 +30,18 @@
 - Conversational financial copilot for budget planning, savings recommendations, and spending analysis.
 - Understands your real-time expenses, budgets, and cash flow.
 
-### 4. 📲 Automated WhatsApp Daily Expense Digest
-- **Evening Summaries**: Receive an automated WhatsApp message every day at your chosen time (e.g., 9:30 PM).
-- **Rich Message Content**:
-  - 💰 Total Spent Today & Number of Transactions
-  - 💵 Today's Incomes Logged
-  - 📂 Emoji Categorized Breakdown with percentages
-  - 📈 Visual ASCII Budget Progress Bar (`[██████░░░░] 60%`)
-  - 💡 Contextual AI Smart Tips for wealth building
-- **1-Tap Direct Send**: Test and share today's report directly on WhatsApp with prefilled parameters.
-
-### 5. 📊 Real-Time Analytics & Cashflow Tracking
+### 4. 📊 Real-Time Analytics & Cashflow Tracking
 - Monthly cash flow breakdown: Income vs. Expenses vs. Net Savings.
-- Category spending distributions and merchant frequency charts.
-- CSV export for spreadsheets and accounting.
+- Category spending distributions, daily trends, and merchant frequency rankings.
+- CSV export for spreadsheets and personal accounting.
+
+### 5. 🎯 Smart Category Budgets
+- Set customized monthly spending limits per category (Food, Transport, Shopping, Bills, etc.).
+- Real-time progress bars with instant overspending warnings and push notifications.
 
 ### 6. 🎨 Premium Shadcn Zinc Aesthetic
 - Sleek dark and light modes with curated HSL neutral palettes.
-- Crisp Lucide icons, tactile buttons, and clean responsive layouts for Web, iOS, and Android.
-
----
-
-## 📱 WhatsApp Daily Digest Sample
-
-```text
-━━━━━━━━━━━━━━━━━━━
-📊 EXPENSE AI • DAILY DIGEST
-━━━━━━━━━━━━━━━━━━━
-👤 Hello Alex!
-📅 Sunday, Oct 4, 2026
-⚡ Status: 🟢 On Track
-
-💰 Total Spent Today: ₹1,450
-📝 Transactions: 3 records
-💵 Income Received: +₹5,000
-
-📂 Category Breakdown:
-🍔 Food: ₹450 (31%) (Chai, Lunch)
-🚗 Transport: ₹500 (34%) (Petrol)
-🛒 Grocery: ₹500 (34%) (Supermarket)
-
-📈 Monthly Budget Progress:
-[████░░░░░░] 42%
-• Spent: ₹12,600 / ₹30,000
-• Remaining: ₹17,400
-
-💡 AI Smart Tip: Great job logging your daily expenses consistently!
-━━━━━━━━━━━━━━━━━━━
-ExpenseAI — Your Smart Personal CFO ✨
-```
+- Crisp Lucide icons, tactile micro-animations, and clean responsive layouts for Web, iOS, and Android.
 
 ---
 
@@ -94,12 +57,12 @@ EXPENSE/
 │   │   │   ├── (tabs)/            # Home Dashboard, Analytics, Expenses, Profile
 │   │   │   └── modal/             # Add Expense, Add Income, Voice AI, Receipt OCR, AI Chat
 │   │   ├── components/            # UI Design system (Shadcn Zinc + Lucide Icons)
-│   │   ├── services/              # AI Service, Firebase, WhatsApp, Storage
+│   │   ├── services/              # AI Service, Firebase, SafeStorage
 │   │   ├── store/                 # Zustand state stores (Auth, Expenses, Budgets)
 │   │   └── types/                 # TypeScript interfaces
 │   └── dist/                      # Exported web production bundle
 ├── functions/                     # Firebase Cloud Functions (Node.js Backend)
-│   └── index.js                   # Scheduled WhatsApp digests & AI callable endpoints
+│   └── index.js                   # AI categorization, voice parser & budget trigger functions
 ├── firebase.json                  # Firebase Hosting & Functions config
 └── firestore.rules                # Database security rules
 ```
@@ -113,7 +76,6 @@ EXPENSE/
 | **Backend & Database** | Firebase Authentication, Cloud Firestore, Cloud Storage |
 | **Hosting** | Firebase Hosting (`https://expense-94f00.web.app`) |
 | **AI LLM API** | OpenRouter API / Google Gemini 2.0 Flash / Meta Llama 3.3 |
-| **WhatsApp Integration** | Meta WhatsApp Cloud API / `wa.me` Universal Links / Twilio |
 
 ---
 
@@ -156,14 +118,6 @@ npm run web
 cd mobile
 npx expo export --platform web
 npx firebase deploy --only hosting
-```
-
-### Deploy Scheduled Cloud Functions
-```bash
-cd functions
-npm install
-firebase functions:config:set whatsapp.token="YOUR_META_TOKEN" whatsapp.phone_id="YOUR_PHONE_ID"
-firebase deploy --only functions
 ```
 
 ---

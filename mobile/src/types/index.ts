@@ -108,9 +108,6 @@ export interface UserProfile {
   totalBudgetLimit?: number;
   notificationsEnabled: boolean;
   biometricsEnabled: boolean;
-  whatsappNumber?: string;
-  whatsappDailyReport?: boolean;
-  whatsappReportTime?: string;
   createdAt: string;
 }
 
