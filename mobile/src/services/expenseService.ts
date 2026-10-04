@@ -14,6 +14,7 @@ import { Expense } from '../types';
 import safeStorage from './safeStorage';
 
 const EXPENSES_COLLECTION = 'expenses';
+const UNIVERSAL_KEY = '@xpenseai_stored_expenses';
 const getCacheKey = (userId: string) => `@xpenseai_cached_expenses_${userId || 'default'}`;
 const getDeletedKey = (userId: string) => `@xpenseai_deleted_expenses_${userId || 'default'}`;
 
@@ -32,7 +33,9 @@ export const expenseService = {
     const deletedKey = getDeletedKey(activeUserId);
 
     // 1. Instantly load local cache so data is ALWAYS immediately visible on reload
-    safeStorage.getItem(cacheKey).then((cached) => {
+    (async () => {
+      let cached = await safeStorage.getItem(cacheKey);
+      if (!cached) cached = await safeStorage.getItem(UNIVERSAL_KEY);
       if (cached) {
         try {
           const parsed: Expense[] = JSON.parse(cached);
@@ -41,7 +44,7 @@ export const expenseService = {
           }
         } catch {}
       }
-    });
+    })();
 
     try {
       const q = query(

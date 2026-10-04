@@ -14,6 +14,7 @@ import { Income } from '../types';
 import safeStorage from './safeStorage';
 
 const INCOMES_COLLECTION = 'incomes';
+const UNIVERSAL_KEY = '@xpenseai_stored_incomes';
 const getCacheKey = (userId: string) => `@xpenseai_cached_incomes_${userId || 'default'}`;
 const getDeletedKey = (userId: string) => `@xpenseai_deleted_incomes_${userId || 'default'}`;
 
@@ -31,7 +32,9 @@ export const incomeService = {
     const deletedKey = getDeletedKey(activeUserId);
 
     // 1. Instantly load local cache so data is immediately visible on app open / reload
-    safeStorage.getItem(cacheKey).then((cached) => {
+    (async () => {
+      let cached = await safeStorage.getItem(cacheKey);
+      if (!cached) cached = await safeStorage.getItem(UNIVERSAL_KEY);
       if (cached) {
         try {
           const parsed: Income[] = JSON.parse(cached);
@@ -40,7 +43,7 @@ export const incomeService = {
           }
         } catch {}
       }
-    });
+    })();
 
     try {
       const q = query(

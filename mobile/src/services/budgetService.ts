@@ -12,6 +12,7 @@ import { Budget, ExpenseCategory, BudgetPeriod } from '../types';
 import safeStorage from './safeStorage';
 
 const BUDGETS_COLLECTION = 'budgets';
+const UNIVERSAL_KEY = '@xpenseai_stored_budgets';
 const getCacheKey = (userId: string) => `@xpenseai_cached_budgets_${userId || 'default'}`;
 const getDeletedKey = (userId: string) => `@xpenseai_deleted_budgets_${userId || 'default'}`;
 
@@ -27,7 +28,9 @@ export const budgetService = {
     const deletedKey = getDeletedKey(activeUserId);
 
     // 1. Instantly load local cache so budgets are immediately visible
-    safeStorage.getItem(cacheKey).then((cached) => {
+    (async () => {
+      let cached = await safeStorage.getItem(cacheKey);
+      if (!cached) cached = await safeStorage.getItem(UNIVERSAL_KEY);
       if (cached) {
         try {
           const parsed: Budget[] = JSON.parse(cached);
@@ -36,7 +39,7 @@ export const budgetService = {
           }
         } catch {}
       }
-    });
+    })();
 
     try {
       const q = query(

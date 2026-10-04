@@ -12,6 +12,51 @@ import {
 import { expenseService } from '../services/expenseService';
 import { incomeService } from '../services/incomeService';
 import { budgetService } from '../services/budgetService';
+import safeStorage from '../services/safeStorage';
+
+export const EXPENSES_STORAGE_KEY = '@xpenseai_stored_expenses';
+export const INCOMES_STORAGE_KEY = '@xpenseai_stored_incomes';
+export const BUDGETS_STORAGE_KEY = '@xpenseai_stored_budgets';
+
+// Synchronous initial load from browser localStorage for instant frame-1 rendering on web
+const getInitialExpenses = (): Expense[] => {
+  try {
+    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined' && window.localStorage) {
+      const data = window.localStorage.getItem(EXPENSES_STORAGE_KEY);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    }
+  } catch {}
+  return [];
+};
+
+const getInitialIncomes = (): Income[] => {
+  try {
+    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined' && window.localStorage) {
+      const data = window.localStorage.getItem(INCOMES_STORAGE_KEY);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    }
+  } catch {}
+  return [];
+};
+
+const getInitialBudgets = (): Budget[] => {
+  try {
+    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined' && window.localStorage) {
+      const data = window.localStorage.getItem(BUDGETS_STORAGE_KEY);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    }
+  } catch {}
+  return [];
+};
 
 interface ExpenseFilterState {
   searchQuery: string;
@@ -79,11 +124,15 @@ interface ExpenseStoreState {
 
 const currentYearMonth = new Date().toISOString().slice(0, 7);
 
+const initialExpenses = getInitialExpenses();
+const initialIncomes = getInitialIncomes();
+const initialBudgets = getInitialBudgets();
+
 export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
-  expenses: [],
-  incomes: [],
-  budgets: [],
-  isLoading: true,
+  expenses: initialExpenses,
+  incomes: initialIncomes,
+  budgets: initialBudgets,
+  isLoading: initialExpenses.length === 0,
   filters: {
     searchQuery: '',
     selectedType: 'ALL',
@@ -98,9 +147,36 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
   pendingVoiceResult: null,
   pendingScanResult: null,
 
-  setExpenses: (expenses) => set({ expenses, isLoading: false }),
-  setIncomes: (incomes) => set({ incomes }),
-  setBudgets: (budgets) => set({ budgets }),
+  setExpenses: (incomingExpenses) => {
+    if (Array.isArray(incomingExpenses) && incomingExpenses.length > 0) {
+      set({ expenses: incomingExpenses, isLoading: false });
+      safeStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(incomingExpenses));
+    } else if (get().expenses.length === 0) {
+      set({ expenses: [], isLoading: false });
+    } else {
+      // If incoming array is empty but store already has items, protect existing items from deletion
+      set({ isLoading: false });
+    }
+  },
+
+  setIncomes: (incomingIncomes) => {
+    if (Array.isArray(incomingIncomes) && incomingIncomes.length > 0) {
+      set({ incomes: incomingIncomes });
+      safeStorage.setItem(INCOMES_STORAGE_KEY, JSON.stringify(incomingIncomes));
+    } else if (get().incomes.length === 0) {
+      set({ incomes: [] });
+    }
+  },
+
+  setBudgets: (incomingBudgets) => {
+    if (Array.isArray(incomingBudgets) && incomingBudgets.length > 0) {
+      set({ budgets: incomingBudgets });
+      safeStorage.setItem(BUDGETS_STORAGE_KEY, JSON.stringify(incomingBudgets));
+    } else if (get().budgets.length === 0) {
+      set({ budgets: [] });
+    }
+  },
+
   setSearchQuery: (query) =>
     set((state) => ({ filters: { ...state.filters, searchQuery: query } })),
   setSelectedType: (type) =>
@@ -122,23 +198,25 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
 
   // Expense CRUD
   addExpense: async (expense) => {
-    const tempId = 'exp-' + Date.now();
+    const tempId = 'exp-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
     const newExp: Expense = {
       ...expense,
       id: tempId,
       createdAt: new Date().toISOString(),
     };
-    // Optimistic UI update
-    set((state) => ({
-      expenses: [newExp, ...state.expenses],
-    }));
 
+    // 1. Immediate optimistic UI update
+    const updatedExpenses = [newExp, ...get().expenses];
+    set({ expenses: updatedExpenses });
+    await safeStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(updatedExpenses));
+
+    // 2. Persist to storage & Firestore in background
     try {
       const realId = await expenseService.createExpense(expense);
       if (realId && realId !== tempId) {
-        set((state) => ({
-          expenses: state.expenses.map((e) => (e.id === tempId ? { ...e, id: realId } : e)),
-        }));
+        const finalizedExpenses = get().expenses.map((e) => (e.id === tempId ? { ...e, id: realId } : e));
+        set({ expenses: finalizedExpenses });
+        await safeStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(finalizedExpenses));
         return realId;
       }
     } catch (err) {
@@ -148,9 +226,10 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
   },
 
   updateExpense: async (id, updates) => {
-    set((state) => ({
-      expenses: state.expenses.map((e) => (e.id === id ? { ...e, ...updates } : e)),
-    }));
+    const updatedExpenses = get().expenses.map((e) => (e.id === id ? { ...e, ...updates } : e));
+    set({ expenses: updatedExpenses });
+    await safeStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(updatedExpenses));
+
     try {
       await expenseService.updateExpense(id, updates);
     } catch (err) {
@@ -159,9 +238,10 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
   },
 
   deleteExpense: async (id) => {
-    set((state) => ({
-      expenses: state.expenses.filter((e) => e.id !== id),
-    }));
+    const updatedExpenses = get().expenses.filter((e) => e.id !== id);
+    set({ expenses: updatedExpenses });
+    await safeStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(updatedExpenses));
+
     try {
       await expenseService.deleteExpense(id);
     } catch (err) {
@@ -171,23 +251,25 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
 
   // Income CRUD
   addIncome: async (income) => {
-    const tempId = 'inc-' + Date.now();
+    const tempId = 'inc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
     const newInc: Income = {
       ...income,
       id: tempId,
       createdAt: new Date().toISOString(),
     };
-    // Optimistic UI update
-    set((state) => ({
-      incomes: [newInc, ...state.incomes],
-    }));
 
+    // 1. Immediate optimistic UI update
+    const updatedIncomes = [newInc, ...get().incomes];
+    set({ incomes: updatedIncomes });
+    await safeStorage.setItem(INCOMES_STORAGE_KEY, JSON.stringify(updatedIncomes));
+
+    // 2. Persist to storage & Firestore in background
     try {
       const realId = await incomeService.createIncome(income);
       if (realId && realId !== tempId) {
-        set((state) => ({
-          incomes: state.incomes.map((i) => (i.id === tempId ? { ...i, id: realId } : i)),
-        }));
+        const finalizedIncomes = get().incomes.map((i) => (i.id === tempId ? { ...i, id: realId } : i));
+        set({ incomes: finalizedIncomes });
+        await safeStorage.setItem(INCOMES_STORAGE_KEY, JSON.stringify(finalizedIncomes));
         return realId;
       }
     } catch (err) {
@@ -197,9 +279,10 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
   },
 
   updateIncome: async (id, updates) => {
-    set((state) => ({
-      incomes: state.incomes.map((i) => (i.id === id ? { ...i, ...updates } : i)),
-    }));
+    const updatedIncomes = get().incomes.map((i) => (i.id === id ? { ...i, ...updates } : i));
+    set({ incomes: updatedIncomes });
+    await safeStorage.setItem(INCOMES_STORAGE_KEY, JSON.stringify(updatedIncomes));
+
     try {
       await incomeService.updateIncome(id, updates);
     } catch (err) {
@@ -208,9 +291,10 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
   },
 
   deleteIncome: async (id) => {
-    set((state) => ({
-      incomes: state.incomes.filter((i) => i.id !== id),
-    }));
+    const updatedIncomes = get().incomes.filter((i) => i.id !== id);
+    set({ incomes: updatedIncomes });
+    await safeStorage.setItem(INCOMES_STORAGE_KEY, JSON.stringify(updatedIncomes));
+
     try {
       await incomeService.deleteIncome(id);
     } catch (err) {
@@ -245,40 +329,41 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
 
   // Budget CRUD
   upsertBudget: async (userId, category, amount, options) => {
-    const docId = `${userId}_${category}`;
-    set((state) => {
-      const existing = state.budgets.find((b) => b.category === category && !b.isOverall);
-      if (existing) {
-        return {
-          budgets: state.budgets.map((b) =>
-            b.category === category && !b.isOverall
-              ? {
-                  ...b,
-                  amount,
-                  period: options?.period || b.period || 'monthly',
-                  alertThreshold: options?.alertThreshold || b.alertThreshold || 80,
-                  updatedAt: new Date().toISOString(),
-                }
-              : b
-          ),
-        };
-      }
-      return {
-        budgets: [
-          ...state.budgets,
-          {
-            id: docId,
-            userId,
-            category,
-            isOverall: false,
-            amount,
-            period: options?.period || 'monthly',
-            alertThreshold: options?.alertThreshold || 80,
-            updatedAt: new Date().toISOString(),
-          },
-        ],
-      };
-    });
+    const docId = `budget_${userId}_${category}`;
+    const existing = get().budgets.find((b) => b.category === category && !b.isOverall);
+
+    let updatedBudgets: Budget[];
+    if (existing) {
+      updatedBudgets = get().budgets.map((b) =>
+        b.category === category && !b.isOverall
+          ? {
+              ...b,
+              amount,
+              period: options?.period || b.period || 'monthly',
+              alertThreshold: options?.alertThreshold || b.alertThreshold || 80,
+              updatedAt: new Date().toISOString(),
+            }
+          : b
+      );
+    } else {
+      updatedBudgets = [
+        ...get().budgets,
+        {
+          id: docId,
+          userId,
+          category,
+          isOverall: false,
+          amount,
+          period: options?.period || 'monthly',
+          alertThreshold: options?.alertThreshold || 80,
+          updatedAt: new Date().toISOString(),
+        },
+      ];
+    }
+
+    set({ budgets: updatedBudgets });
+    await safeStorage.setItem(BUDGETS_STORAGE_KEY, JSON.stringify(updatedBudgets));
+
     try {
       await budgetService.upsertBudget(userId, category, amount, options);
     } catch (err) {
@@ -287,41 +372,42 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
   },
 
   upsertOverallBudget: async (userId, amount, period = 'monthly', alertThreshold = 80) => {
-    const docId = `${userId}_OVERALL`;
-    set((state) => {
-      const existing = state.budgets.find((b) => b.isOverall);
-      if (existing) {
-        return {
-          budgets: state.budgets.map((b) =>
-            b.isOverall
-              ? {
-                  ...b,
-                  amount,
-                  period,
-                  alertThreshold,
-                  name: 'Overall Budget',
-                  updatedAt: new Date().toISOString(),
-                }
-              : b
-          ),
-        };
-      }
-      return {
-        budgets: [
-          ...state.budgets,
-          {
-            id: docId,
-            userId,
-            isOverall: true,
-            amount,
-            period,
-            alertThreshold,
-            name: 'Overall Budget',
-            updatedAt: new Date().toISOString(),
-          },
-        ],
-      };
-    });
+    const docId = `budget_${userId}_OVERALL`;
+    const existing = get().budgets.find((b) => b.isOverall);
+
+    let updatedBudgets: Budget[];
+    if (existing) {
+      updatedBudgets = get().budgets.map((b) =>
+        b.isOverall
+          ? {
+              ...b,
+              amount,
+              period,
+              alertThreshold,
+              name: 'Overall Budget',
+              updatedAt: new Date().toISOString(),
+            }
+          : b
+      );
+    } else {
+      updatedBudgets = [
+        ...get().budgets,
+        {
+          id: docId,
+          userId,
+          isOverall: true,
+          amount,
+          period,
+          alertThreshold,
+          name: 'Overall Budget',
+          updatedAt: new Date().toISOString(),
+        },
+      ];
+    }
+
+    set({ budgets: updatedBudgets });
+    await safeStorage.setItem(BUDGETS_STORAGE_KEY, JSON.stringify(updatedBudgets));
+
     try {
       await budgetService.upsertOverallBudget(userId, amount, period, alertThreshold);
     } catch (err) {
@@ -330,9 +416,10 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
   },
 
   deleteBudget: async (budgetId) => {
-    set((state) => ({
-      budgets: state.budgets.filter((b) => b.id !== budgetId),
-    }));
+    const updatedBudgets = get().budgets.filter((b) => b.id !== budgetId);
+    set({ budgets: updatedBudgets });
+    await safeStorage.setItem(BUDGETS_STORAGE_KEY, JSON.stringify(updatedBudgets));
+
     try {
       await budgetService.deleteBudget(budgetId);
     } catch (err) {
@@ -340,4 +427,39 @@ export const useExpenseStore = create<ExpenseStoreState>((set, get) => ({
     }
   },
 }));
+
+// Asynchronous hydration for React Native Native
+safeStorage.getItem(EXPENSES_STORAGE_KEY).then((cached) => {
+  if (cached) {
+    try {
+      const items = JSON.parse(cached);
+      if (Array.isArray(items) && items.length > 0 && useExpenseStore.getState().expenses.length === 0) {
+        useExpenseStore.setState({ expenses: items, isLoading: false });
+      }
+    } catch {}
+  }
+});
+
+safeStorage.getItem(INCOMES_STORAGE_KEY).then((cached) => {
+  if (cached) {
+    try {
+      const items = JSON.parse(cached);
+      if (Array.isArray(items) && items.length > 0 && useExpenseStore.getState().incomes.length === 0) {
+        useExpenseStore.setState({ incomes: items });
+      }
+    } catch {}
+  }
+});
+
+safeStorage.getItem(BUDGETS_STORAGE_KEY).then((cached) => {
+  if (cached) {
+    try {
+      const items = JSON.parse(cached);
+      if (Array.isArray(items) && items.length > 0 && useExpenseStore.getState().budgets.length === 0) {
+        useExpenseStore.setState({ budgets: items });
+      }
+    } catch {}
+  }
+});
+
 
