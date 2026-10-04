@@ -1,19 +1,19 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Camera, Mic, Wallet, Sparkles } from '../ui/icons';
+import { Camera, Mic, Plus, Sparkles } from '../ui/icons';
 import { useAppTheme } from '../../hooks/use-theme';
 
 interface QuickActionGridProps {
   onScanPress: () => void;
   onVoicePress: () => void;
-  onBudgetPress?: () => void;
+  onAddExpensePress?: () => void;
   onAiChatPress?: () => void;
 }
 
 export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
   onScanPress,
   onVoicePress,
-  onBudgetPress,
+  onAddExpensePress,
   onAiChatPress,
 }) => {
   const { colors, isDark } = useAppTheme();
@@ -32,10 +32,10 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
       onPress: onVoicePress,
     },
     {
-      id: 'budgets',
-      label: 'Budgets',
-      icon: Wallet,
-      onPress: onBudgetPress,
+      id: 'add-expense',
+      label: 'Add Expense',
+      icon: Plus,
+      onPress: onAddExpensePress,
     },
     {
       id: 'ai-chat',

@@ -248,7 +248,7 @@ export default function HomeScreen() {
         <QuickActionGrid
           onScanPress={() => router.push('/modal/scan')}
           onVoicePress={() => router.push('/modal/voice')}
-          onBudgetPress={() => router.push('/(tabs)/budgets')}
+          onAddExpensePress={() => router.push('/modal/add-expense')}
           onAiChatPress={() => router.push('/modal/ai-chat')}
         />
 
