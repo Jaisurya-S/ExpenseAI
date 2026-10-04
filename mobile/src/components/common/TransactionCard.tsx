@@ -26,6 +26,7 @@ import {
   HandCoins,
   PiggyBank,
   CirclePlus,
+  Trash2,
 } from '../ui/icons';
 
 interface TransactionCardProps {
@@ -79,6 +80,7 @@ function formatDisplayDate(dateStr: string) {
 export const TransactionCard: React.FC<TransactionCardProps> = ({
   transaction,
   onPress,
+  onDelete,
 }) => {
   const { profile } = useAuthStore();
   const { colors, isDark } = useAppTheme();
@@ -168,6 +170,28 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
           {transaction.paymentMethod || 'UPI'}
         </Text>
       </View>
+
+      {onDelete && (
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={(e) => {
+            if (e && typeof (e as any).stopPropagation === 'function') {
+              (e as any).stopPropagation();
+            }
+            onDelete();
+          }}
+          style={[
+            styles.deleteBtn,
+            {
+              backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2',
+              borderColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FEE2E2',
+            },
+          ]}
+          accessibilityLabel="Delete transaction"
+        >
+          <Trash2 size={13} color={colors.danger} />
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 };
@@ -238,5 +262,14 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     fontWeight: '500',
     textTransform: 'uppercase',
+  },
+  deleteBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 10,
   },
 });

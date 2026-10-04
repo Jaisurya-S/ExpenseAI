@@ -39,6 +39,7 @@ import {
   CreditCard,
   Banknote,
   Wallet,
+  Trash2,
 } from '../../components/ui/icons';
 
 const CategoryIconMap: Record<string, React.FC<{ size?: number; color?: string; style?: any }>> = {
@@ -70,7 +71,7 @@ export default function AddExpenseModal() {
   const { profile, user } = useAuthStore();
   const { colors, isDark } = useAppTheme();
   const currency = profile.currency || '₹';
-  const { addExpense, updateExpense, draftExpense, setDraftExpense } = useExpenseStore();
+  const { addExpense, updateExpense, deleteExpense, draftExpense, setDraftExpense } = useExpenseStore();
 
   const isEditing = Boolean(draftExpense?.id);
 
@@ -180,6 +181,27 @@ export default function AddExpenseModal() {
       }
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!draftExpense?.id) return;
+
+    const performDelete = async () => {
+      await deleteExpense(draftExpense.id!);
+      setDraftExpense(null);
+      router.back();
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to delete this expense?')) {
+        await performDelete();
+      }
+    } else {
+      Alert.alert('Delete Expense', 'Are you sure you want to delete this expense?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: performDelete },
+      ]);
     }
   };
 
@@ -550,14 +572,39 @@ export default function AddExpenseModal() {
             {
               backgroundColor: colors.card,
               borderTopColor: colors.cardBorder,
+              flexDirection: isEditing ? 'row' : 'column',
+              gap: 10,
             },
           ]}
         >
+          {isEditing && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleDelete}
+              style={[
+                styles.deleteBtn,
+                {
+                  backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2',
+                  borderColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FEE2E2',
+                },
+              ]}
+              accessibilityLabel="Delete Expense"
+            >
+              <Trash2 size={18} color={colors.danger} />
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={handleSaveExpense}
             disabled={isSaving}
-            style={[styles.saveExpenseBtn, { backgroundColor: colors.primary }]}
+            style={[
+              styles.saveExpenseBtn,
+              {
+                backgroundColor: colors.primary,
+                flex: isEditing ? 1 : undefined,
+              },
+            ]}
           >
             {isSaving ? (
               <ActivityIndicator color={colors.primaryText} size="small" />
@@ -783,6 +830,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
+  },
+  deleteBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   saveExpenseBtn: {
     borderRadius: 12,

@@ -280,17 +280,36 @@ export const expenseService = {
 
   // Delete expense
   deleteExpense: async (id: string, userId?: string): Promise<void> => {
-    const activeUserId = userId || 'demo-user';
+    let activeUserId = userId;
+    if (!activeUserId) {
+      try {
+        const authData = await safeStorage.getItem('@xpenseai_master_auth_store');
+        if (authData) {
+          const parsed = JSON.parse(authData);
+          if (parsed?.state?.profile?.uid) {
+            activeUserId = parsed.state.profile.uid;
+          }
+        }
+      } catch {}
+    }
+    if (!activeUserId) activeUserId = 'demo-user';
     const cacheKey = getCacheKey(activeUserId);
     const deletedKey = getDeletedKey(activeUserId);
 
-    // 1. Remove from local cache and add to deleted set
+    // 1. Remove from local user cache, universal cache, and add to deleted set
     try {
       const cached = await safeStorage.getItem(cacheKey);
       if (cached) {
         let items: Expense[] = JSON.parse(cached);
         items = items.filter((e) => e.id !== id);
         await safeStorage.setItem(cacheKey, JSON.stringify(items));
+      }
+
+      const univCached = await safeStorage.getItem(UNIVERSAL_KEY);
+      if (univCached) {
+        let items: Expense[] = JSON.parse(univCached);
+        items = items.filter((e) => e.id !== id);
+        await safeStorage.setItem(UNIVERSAL_KEY, JSON.stringify(items));
       }
 
       const deletedStr = await safeStorage.getItem(deletedKey);

@@ -371,12 +371,13 @@ export const useExpenseStore = create<ExpenseStoreState>()(
       },
 
       deleteExpense: async (id) => {
+        const activeUserId = get().activeUserId || 'demo-user';
         const updatedExpenses = get().expenses.filter((e) => e.id !== id);
         set({ expenses: updatedExpenses });
         syncWebStorage({ expenses: updatedExpenses });
 
         try {
-          await expenseService.deleteExpense(id);
+          await expenseService.deleteExpense(id, activeUserId);
         } catch (err) {
           console.warn('deleteExpense service error:', err);
         }
@@ -428,12 +429,13 @@ export const useExpenseStore = create<ExpenseStoreState>()(
       },
 
       deleteIncome: async (id) => {
+        const activeUserId = get().activeUserId || 'demo-user';
         const updatedIncomes = get().incomes.filter((i) => i.id !== id);
         set({ incomes: updatedIncomes });
         syncWebStorage({ incomes: updatedIncomes });
 
         try {
-          await incomeService.deleteIncome(id);
+          await incomeService.deleteIncome(id, activeUserId);
         } catch (err) {
           console.warn('deleteIncome service error:', err);
         }
@@ -553,12 +555,13 @@ export const useExpenseStore = create<ExpenseStoreState>()(
       },
 
       deleteBudget: async (budgetId) => {
+        const activeUserId = get().activeUserId || 'demo-user';
         const updatedBudgets = get().budgets.filter((b) => b.id !== budgetId);
         set({ budgets: updatedBudgets });
         syncWebStorage({ budgets: updatedBudgets });
 
         try {
-          await budgetService.deleteBudget(budgetId);
+          await budgetService.deleteBudget(budgetId, activeUserId);
         } catch (err) {
           console.warn('deleteBudget service error:', err);
         }
