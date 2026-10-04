@@ -2,7 +2,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 // @ts-ignore
 import { initializeAuth, getReactNativePersistence, getAuth, Auth } from 'firebase/auth';
 import safeStorage from './safeStorage';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { initializeFirestore, getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { Platform } from 'react-native';
 
@@ -36,9 +36,28 @@ try {
   auth = getAuth(app);
 }
 
-// Firestore & Storage
-const db: Firestore = getFirestore(app);
+// Initialize Firestore with ignoreUndefinedProperties to prevent crashes on undefined fields
+let db: Firestore;
+try {
+  db = initializeFirestore(app, {
+    ignoreUndefinedProperties: true,
+  });
+} catch (e) {
+  db = getFirestore(app);
+}
+
 const storage: FirebaseStorage = getStorage(app);
+
+// Helper to remove any undefined values before sending to Firestore
+export const sanitizeForFirestore = <T extends Record<string, any>>(data: T): Record<string, any> => {
+  const result: Record<string, any> = {};
+  for (const [key, val] of Object.entries(data)) {
+    if (val !== undefined) {
+      result[key] = val;
+    }
+  }
+  return result;
+};
 
 // Crashlytics logger wrapper
 export const crashlytics = {
@@ -69,3 +88,4 @@ export const messagingService = {
 };
 
 export { app, auth, db, storage };
+

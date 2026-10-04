@@ -27,6 +27,7 @@ export default function RootLayout() {
 
   // Real-time Firestore subscriptions for logged-in user
   useEffect(() => {
+    if (!isInitialized) return;
     const userId = user?.uid || profile.uid || 'demo-user';
     const unsubExpenses = expenseService.subscribeUserExpenses(userId, (data) => {
       setExpenses(data);
@@ -43,7 +44,7 @@ export default function RootLayout() {
       unsubIncomes();
       unsubBudgets();
     };
-  }, [user?.uid, profile.uid]);
+  }, [isInitialized, user?.uid, profile.uid]);
 
   if (!isInitialized) {
     return (

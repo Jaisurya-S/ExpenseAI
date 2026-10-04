@@ -50,11 +50,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   themeMode: 'dark',
 
   initAuth: () => {
+    let profileLoaded = false;
+    let authChecked = false;
+
+    const checkReady = () => {
+      if (profileLoaded && authChecked) {
+        set({ isInitialized: true });
+      }
+    };
+
     // Load local stored preferences
     safeStorage.getItem('@xpenseai_user_profile').then((data) => {
       if (data) {
-        set({ profile: { ...DEFAULT_PROFILE, ...JSON.parse(data) } });
+        try {
+          const parsed = JSON.parse(data);
+          set({ profile: { ...DEFAULT_PROFILE, ...parsed } });
+        } catch {}
       }
+      profileLoaded = true;
+      checkReady();
+    }).catch(() => {
+      profileLoaded = true;
+      checkReady();
     });
 
     safeStorage.getItem('@xpenseai_theme_mode').then((mode) => {
@@ -65,38 +82,37 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     // Safety timeout in case onAuthStateChanged is delayed
     const timeoutId = setTimeout(() => {
+      profileLoaded = true;
+      authChecked = true;
       if (!get().isInitialized) {
         set({ isInitialized: true });
       }
-    }, 2000);
+    }, 1500);
 
     // Subscribe to Firebase Auth
     const unsub = onAuthStateChanged(
       auth,
       (firebaseUser) => {
-        clearTimeout(timeoutId);
+        authChecked = true;
         if (firebaseUser) {
           set({
             user: firebaseUser,
-            isInitialized: true,
             profile: {
               ...get().profile,
               uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Xpense User',
+              email: firebaseUser.email || get().profile.email,
+              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || get().profile.displayName || 'Xpense User',
             },
           });
         } else {
-          set({
-            user: null,
-            isInitialized: true,
-          });
+          set({ user: null });
         }
+        checkReady();
       },
       (error) => {
-        clearTimeout(timeoutId);
+        authChecked = true;
         console.warn('Firebase Auth State Error:', error);
-        set({ isInitialized: true });
+        checkReady();
       }
     );
 
