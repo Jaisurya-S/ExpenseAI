@@ -21,8 +21,40 @@ const OPENROUTER_MODEL = "openai/gpt-4o-mini";
 /**
  * 1. Instant Local Heuristic Categorizer
  */
+/**
+ * 1. Instant Local Heuristic Categorizer
+ */
 export function categorizeLocally(description: string, merchant: string = ''): { category: ExpenseCategory; confidence: number } {
   const text = `${description} ${merchant}`.toLowerCase();
+
+  // High-priority exact word/category mappings for everyday micro-expenses
+  if (/\b(?:tea|chai|coffee|cappuccino|latte|espresso|samosa|snack|snacks|dosa|idli|vada|poori|puri|roti|chapati|paratha|meals|thali|lunch|dinner|breakfast|biryani|shawarma|curry|sandwich|burger|pizza|pasta|noodles|maggi|momos|panipuri|chaat|bhel|juice|lassi|shake|soda|coke|water|ice\s*cream|kulfi|cake|pastry|bakery|sweet|sweets|dessert|swiggy|zomato|starbucks|mcdonalds|kfc|subway|restaurant|cafe|cigarette|pan)\b/i.test(text)) {
+    return { category: 'Food', confidence: 0.98 };
+  }
+  if (/\b(?:grocery|groceries|supermarket|walmart|target|costco|dmart|blinkit|zepto|instamart|bigbasket|milk|curd|yogurt|paneer|cheese|butter|ghee|bread|eggs?|meat|chicken|fish|vegetables?|veggies?|tomato|onion|potato|fruits?|apple|banana|mango|rice\s*bag|atta|flour|dal|pulses|oil|cooking\s*oil|provisions?)\b/i.test(text)) {
+    return { category: 'Grocery', confidence: 0.98 };
+  }
+  if (/\b(?:uber|ola|rapido|cab|taxi|auto|rickshaw|e-rickshaw|metro|train|bus|ticket|fuel|petrol|diesel|cng|parking|toll|fastag|flight|airline)\b/i.test(text)) {
+    return { category: 'Transport', confidence: 0.98 };
+  }
+  if (/\b(?:recharge|mobile\s*recharge|electricity|current\s*bill|eb\s*bill|water\s*bill|gas\s*bill|lpg|cylinder|wifi|internet|broadband|airtel|jio|vi|bsnl|rent|house\s*rent|maintenance|insurance)\b/i.test(text)) {
+    return { category: 'Bills', confidence: 0.98 };
+  }
+  if (/\b(?:amazon|flipkart|myntra|ajio|meesho|clothing|clothes|shirt|t-shirt|pants|jeans|dress|shoes|footwear|electronics|gadget|watch|mall|zara|h&m|nike|adidas)\b/i.test(text)) {
+    return { category: 'Shopping', confidence: 0.98 };
+  }
+  if (/\b(?:pharmacy|medicine|tablet|syrup|doctor|hospital|clinic|dental|gym|fitness|supplement|therapy|apollo|netmeds|pharmeasy|consultation)\b/i.test(text)) {
+    return { category: 'Health', confidence: 0.98 };
+  }
+  if (/\b(?:netflix|spotify|prime\s*video|hotstar|disney|movie|cinema|pvr|inox|theatre|concert|game|gaming|steam|playstation|xbox)\b/i.test(text)) {
+    return { category: 'Entertainment', confidence: 0.98 };
+  }
+  if (/\b(?:udemy|coursera|book|tuition|course|college|school|exam|class|training|kindle|stationery|pen|notebook)\b/i.test(text)) {
+    return { category: 'Education', confidence: 0.98 };
+  }
+  if (/\b(?:stocks?|crypto|mutual\s*fund|sip|zerodha|groww|etf|gold|shares?|fixed\s*deposit|fd)\b/i.test(text)) {
+    return { category: 'Investment', confidence: 0.98 };
+  }
 
   for (const [catName, meta] of Object.entries(CATEGORIES)) {
     for (const kw of meta.keywords) {
@@ -31,13 +63,6 @@ export function categorizeLocally(description: string, merchant: string = ''): {
       }
     }
   }
-
-  // Common extra fallbacks
-  if (/(cab|auto|flight|train|petrol|diesel|toll)/i.test(text)) return { category: 'Transport', confidence: 0.9 };
-  if (/(food|tea|coffee|snack|biryani|roti|dosa|idli|lunch|dinner|curry)/i.test(text)) return { category: 'Food', confidence: 0.9 };
-  if (/(recharge|broadband|wifi|electric|current|water|rent)/i.test(text)) return { category: 'Bills', confidence: 0.9 };
-  if (/(shirt|dress|jeans|cloth|shoes|amazon|flipkart)/i.test(text)) return { category: 'Shopping', confidence: 0.9 };
-  if (/(medicine|tablet|syrup|hospital|doctor|clinic)/i.test(text)) return { category: 'Health', confidence: 0.9 };
 
   return { category: 'Other', confidence: 0.5 };
 }
@@ -106,8 +131,30 @@ export function deduplicateSpokenText(text: string): string {
   }
 
   // 3. Remove progressive stuttering prefixes like "add 500 rupees add 500 rupees on milk"
-  // Match prefix repeated before an extension: (phrase) (phrase ... extension) -> phrase ... extension
   cleaned = cleaned.replace(/\b(.{4,40}?)\s+\1\b/gi, '$1');
+
+  return cleaned.replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Helper: Normalize speech recognition phonetic approximations
+ * e.g. "T20" -> "tea 20", "t 15" -> "tea 15", "the 20" -> "tea 20"
+ */
+export function normalizeSpokenPhrases(text: string): string {
+  if (!text) return '';
+  let cleaned = deduplicateSpokenText(text);
+
+  // Fix common speech-to-text approximations for tea/chai/coffee
+  cleaned = cleaned.replace(/\b(?:t\s*20|t20|t-20)\b/gi, 'tea 20');
+  cleaned = cleaned.replace(/\b(?:t\s*10|t10|t-10)\b/gi, 'tea 10');
+  cleaned = cleaned.replace(/\b(?:t\s*15|t15|t-15)\b/gi, 'tea 15');
+  cleaned = cleaned.replace(/\b(?:t\s*(\d+))\b/gi, 'tea $1');
+  cleaned = cleaned.replace(/\b(?:chay|chaai|chye)\b/gi, 'chai');
+  cleaned = cleaned.replace(/\b(?:dosai|dhosa|dhose)\b/gi, 'dosa');
+  cleaned = cleaned.replace(/\b(?:cappucino|cappuchino)\b/gi, 'cappuccino');
+  cleaned = cleaned.replace(/\b(?:samosas|somosa)\b/gi, 'samosa');
+  cleaned = cleaned.replace(/\b(?:briyani|biriyani)\b/gi, 'biryani');
+  cleaned = cleaned.replace(/\b(?:shawarmaa|shwarma)\b/gi, 'shawarma');
 
   return cleaned.replace(/\s+/g, ' ').trim();
 }
@@ -117,7 +164,7 @@ export function deduplicateSpokenText(text: string): string {
  * e.g., "five hundred", "two thousand five hundred", "1.5k", "20k", "two lakh"
  */
 function parseNumberWords(text: string): number | null {
-  const clean = deduplicateSpokenText(text).toLowerCase().trim();
+  const clean = normalizeSpokenPhrases(text).toLowerCase().trim();
 
   // Match "1.5k", "2.5k", "10k"
   const kMatch = clean.match(/\b(\d+(?:\.\d+)?)\s*k\b/i);
@@ -173,14 +220,14 @@ function parseNumberWords(text: string): number | null {
  * Helper: Smart heuristic amount extractor from natural language voice transcript
  */
 function extractAmountFromText(text: string): number {
-  const clean = deduplicateSpokenText(text).toLowerCase();
+  const clean = normalizeSpokenPhrases(text).toLowerCase();
 
   // 1. Explicit currency / price indicators (Highest priority)
   // e.g. "₹350", "rs 500", "500 rupees", "400 bucks", "$50", "350 inr", "paid 600", "spent 250", "for 120"
   const patterns = [
     /(?:₹|\$|€|£|rs\.?|inr|rupees?|bucks?)\s*(\d+(?:\.\d{1,2})?)/i,
     /(\d+(?:\.\d{1,2})?)\s*(?:₹|\$|€|£|rs\.?|inr|rupees?|bucks?)/i,
-    /(?:paid|spent|cost|bill of|for|amount)\s*(?:₹|\$|rs\.?)?\s*(\d+(?:\.\d{1,2})?)/i,
+    /(?:paid|spent|cost|bill of|for|amount|gave)\s*(?:₹|\$|rs\.?)?\s*(\d+(?:\.\d{1,2})?)/i,
   ];
 
   for (const pattern of patterns) {
@@ -190,13 +237,31 @@ function extractAmountFromText(text: string): number {
     }
   }
 
-  // 2. Check for number words (e.g., "five hundred rupees", "two thousand", "1.5k")
+  // 2. Quantity + item + price patterns: e.g. "2 teas 30", "3 chai 45", "2 coffees for 60"
+  const qtyItemPriceMatch = clean.match(/\b\d+\s+(?:teas?|chais?|coffees?|cups?|bottles?|plates?|items?|dosas?|samosas?)\s*(?:for|cost|price|is|amount)?\s*(\d+(?:\.\d{1,2})?)\b/i);
+  if (qtyItemPriceMatch && parseFloat(qtyItemPriceMatch[1]) > 0) {
+    return parseFloat(qtyItemPriceMatch[1]);
+  }
+
+  // 3. Item followed by number: e.g. "tea 20", "chai 10", "coffee 30", "dosa 50", "milk 35", "auto 50", "petrol 200"
+  const itemPriceMatch = clean.match(/\b(?:tea|chai|coffee|milk|water|juice|soda|snack|snacks|samosa|dosa|idli|vada|poori|puri|roti|meals|lunch|dinner|breakfast|biryani|shawarma|burger|pizza|sandwich|bread|egg|eggs|curd|petrol|diesel|auto|cab|taxi|bus|ticket|recharge|cigarette|pan)\s*(\d+(?:\.\d{1,2})?)\b/i);
+  if (itemPriceMatch && parseFloat(itemPriceMatch[1]) > 0) {
+    return parseFloat(itemPriceMatch[1]);
+  }
+
+  // 4. Number followed by item: e.g. "20 tea", "10 chai", "50 auto", "200 petrol"
+  const priceItemMatch = clean.match(/\b(\d+(?:\.\d{1,2})?)\s*(?:rs\.?|rupees?)?\s*(?:tea|chai|coffee|milk|water|juice|soda|snack|snacks|samosa|dosa|idli|vada|poori|puri|roti|meals|lunch|dinner|breakfast|biryani|shawarma|burger|pizza|sandwich|bread|egg|eggs|curd|petrol|diesel|auto|cab|taxi|bus|ticket|recharge|cigarette|pan)\b/i);
+  if (priceItemMatch && parseFloat(priceItemMatch[1]) > 0) {
+    return parseFloat(priceItemMatch[1]);
+  }
+
+  // 5. Check for number words (e.g., "five hundred rupees", "two thousand", "1.5k", "twenty", "fifteen")
   const wordAmount = parseNumberWords(clean);
   if (wordAmount && wordAmount > 0) {
     return wordAmount;
   }
 
-  // 3. Score all numbers in string: penalize quantities (e.g., "2 coffees", "3 shirts")
+  // 6. Score all numbers in string: penalize quantities (e.g., "2 coffees", "3 shirts")
   const numberTokens = [...clean.matchAll(/\b(\d+(?:\.\d{1,2})?)\b/g)];
   if (numberTokens.length > 0) {
     let bestNum = 0;
@@ -209,16 +274,16 @@ function extractAmountFromText(text: string): number {
       const beforeText = clean.slice(Math.max(0, index - 15), index).toLowerCase();
 
       let score = 1;
-      // Penalize small quantities like "2 coffees", "3 tickets", "1 pizza", "4 pcs"
-      if (/^\s*(coffees?|pizzas?|tickets?|items?|burgers?|shirts?|beers?|plates?|pcs|nos)/i.test(afterText)) {
-        score -= 2;
+      // Penalize small quantities like "2 coffees", "3 tickets", "1 pizza", "4 pcs", "2 teas", "3 chais"
+      if (/^\s*(teas?|chais?|coffees?|cups?|glasses?|bottles?|pizzas?|tickets?|items?|burgers?|shirts?|beers?|plates?|pcs|nos)/i.test(afterText)) {
+        score -= 3;
       }
-      // Boost if preceded by payment/expense verbs
-      if (/(spent|paid|for|gave|total|cost|price|add|bill)/i.test(beforeText)) {
+      // Boost if preceded by payment/expense verbs or item names
+      if (/(spent|paid|for|gave|total|cost|price|add|bill|tea|chai|coffee|dosa|auto|milk|petrol)/i.test(beforeText)) {
         score += 3;
       }
-      // Higher monetary values are more likely to be amounts rather than counts
-      if (val >= 10) score += 1;
+      // Monetary values above 5 are standard
+      if (val >= 5) score += 1;
 
       if (score > bestScore) {
         bestScore = score;
@@ -290,7 +355,7 @@ function extractMerchantFromText(text: string): string {
  */
 export async function parseVoiceTranscript(transcript: string): Promise<AIParseResult> {
   const today = new Date().toISOString().split('T')[0];
-  const cleaned = deduplicateSpokenText(transcript);
+  const cleaned = normalizeSpokenPhrases(transcript);
 
   if (!cleaned) {
     return {
@@ -315,36 +380,48 @@ export async function parseVoiceTranscript(transcript: string): Promise<AIParseR
 Your task is to parse spoken voice transcripts or natural language financial inputs into structured expense data with high accuracy.
 
 RULES:
-1. "amount" (number): The actual monetary cost. CRITICAL: Distinguish between item quantities (e.g. "3 coffees", "2 tickets") and the actual price paid (e.g. "spent 450 for 3 coffees" -> amount is 450, NOT 3). Resolve spoken numbers like "five hundred" -> 500, "1.5k" -> 1500, "two thousand" -> 2000. If an amount or phrase is stuttered/repeated by voice input, extract ONLY the single intended transaction amount, DO NOT sum repeated values.
+1. "amount" (number): The actual monetary cost.
+   - For short phrases like "tea 20", "chai 10", "coffee 30", "dosa 50", "auto 40", "petrol 200", amount is the price (20, 10, 30, 50, 40, 200).
+   - Distinguish quantities from price: "2 teas 30" -> amount is 30, description is "2 Teas". "Spent 450 for 2 coffees" -> amount is 450.
+   - Resolve words like "twenty" -> 20, "five hundred" -> 500, "1.5k" -> 1500.
 2. "category": Choose EXACTLY ONE from: [Food, Grocery, Transport, Shopping, Bills, Entertainment, Health, Education, Investment, Other].
-   - Food: restaurants, cafes, snacks, delivery (Swiggy/Zomato), tea/coffee, fast food.
-   - Grocery: supermarkets, daily essentials, vegetables, fruits, Blinkit, Zepto, Walmart, groceries.
-   - Transport: taxi, uber, ola, rapido, bus, train, metro, fuel, petrol, diesel, toll, auto, flights.
-   - Shopping: clothes, electronics, shoes, Amazon, Flipkart, retail merchandise.
-   - Bills: electricity, water, gas, broadband, recharge, rent, mobile bill, utilities.
-   - Entertainment: movies, Netflix, Spotify, gaming, concerts, subscriptions.
-   - Health: medicines, pharmacy, doctor, hospital, gym, supplements.
-   - Education: courses, tuition, books, exam fees, Udemy.
-   - Investment: stocks, crypto, mutual funds, SIP, gold.
+   - Food: tea, chai, coffee, snacks, samosa, dosa, idli, lunch, dinner, breakfast, biryani, restaurants, cafes, Swiggy, Zomato.
+   - Grocery: milk, curd, vegetables, fruits, bread, eggs, supermarket, Walmart, Blinkit, Zepto, Dmart.
+   - Transport: auto, cab, uber, ola, rapido, bus, train, metro, fuel, petrol, diesel, toll.
+   - Shopping: clothes, shoes, Amazon, Flipkart, electronics.
+   - Bills: recharge, electricity, current bill, wifi, broadband, gas, rent, utilities.
+   - Entertainment: Netflix, movies, gaming, Spotify.
+   - Health: medicine, doctor, hospital, gym.
+   - Education: books, courses, tuition.
+   - Investment: stocks, crypto, mutual funds, SIP.
    - Other: miscellaneous.
-3. "description": Clean, concise title (e.g. "Coffee at Starbucks", "Uber to Office", "Grocery Shopping").
+3. "description": Clean, concise title (e.g. "Tea", "Chai", "2 Coffees", "Lunch at Subway", "Auto to Station", "Petrol Refuel").
 4. "merchant": Vendor or merchant name if mentioned (e.g. "Starbucks", "Uber", "Walmart", "Swiggy", "Amazon"), or empty string.
-5. "date": ISO format (YYYY-MM-DD). Accurately calculate relative expressions like "yesterday", "day before yesterday", "last night", "3 days ago", or "today".
+5. "date": ISO format (YYYY-MM-DD). Accurately calculate relative expressions like "yesterday", "last night", or "today".
 6. "paymentMethod": One of: [UPI, Card, Cash, NetBanking, Wallet, Other].
-7. "confidence": Confidence score between 0.85 and 0.99.
+7. "confidence": Confidence score between 0.90 and 0.99.
 
 FEW-SHOT EXAMPLES:
+Input: "tea 20"
+Output: {"amount": 20, "category": "Food", "description": "Tea", "merchant": "", "date": "${today}", "paymentMethod": "UPI", "confidence": 0.98}
+
+Input: "chai 10"
+Output: {"amount": 10, "category": "Food", "description": "Chai", "merchant": "", "date": "${today}", "paymentMethod": "Cash", "confidence": 0.98}
+
+Input: "2 tea 30"
+Output: {"amount": 30, "category": "Food", "description": "2 Teas", "merchant": "", "date": "${today}", "paymentMethod": "UPI", "confidence": 0.98}
+
 Input: "Spent 450 for 2 coffees at Starbucks paid with UPI"
 Output: {"amount": 450, "category": "Food", "description": "2 Coffees at Starbucks", "merchant": "Starbucks", "date": "${today}", "paymentMethod": "UPI", "confidence": 0.98}
 
 Input: "Uber ride to office 280 yesterday by card"
 Output: {"amount": 280, "category": "Transport", "description": "Uber ride to office", "merchant": "Uber", "date": "${resolveRelativeDate('yesterday')}", "paymentMethod": "Card", "confidence": 0.98}
 
-Input: "Bought two thousand five hundred groceries from Walmart in cash"
-Output: {"amount": 2500, "category": "Grocery", "description": "Groceries from Walmart", "merchant": "Walmart", "date": "${today}", "paymentMethod": "Cash", "confidence": 0.96}
+Input: "milk 35"
+Output: {"amount": 35, "category": "Grocery", "description": "Milk", "merchant": "", "date": "${today}", "paymentMethod": "UPI", "confidence": 0.98}
 
-Input: "Electricity bill 3200 paid with netbanking"
-Output: {"amount": 3200, "category": "Bills", "description": "Electricity Bill", "merchant": "", "date": "${today}", "paymentMethod": "NetBanking", "confidence": 0.97}
+Input: "auto 50"
+Output: {"amount": 50, "category": "Transport", "description": "Auto Fare", "merchant": "", "date": "${today}", "paymentMethod": "Cash", "confidence": 0.98}
 
 Return ONLY valid JSON matching this structure.`;
 
@@ -411,10 +488,11 @@ Return ONLY valid JSON matching this structure.`;
     .trim()
     .replace(/\s+/g, ' ');
 
-  if (!cleanDesc || cleanDesc.length < 3) {
-    cleanDesc = detectedMerchant ? `${localCat.category} at ${detectedMerchant}` : `${localCat.category} Expense`;
+  // If the word is short but meaningful (like "tea", "chai", "bus", "cab", "egg", "gas", "gym")
+  if (cleanDesc && cleanDesc.length >= 2) {
+    cleanDesc = cleanDesc.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   } else {
-    cleanDesc = cleanDesc.charAt(0).toUpperCase() + cleanDesc.slice(1);
+    cleanDesc = detectedMerchant ? `${localCat.category} at ${detectedMerchant}` : `${localCat.category} Expense`;
   }
 
   return {
@@ -424,7 +502,7 @@ Return ONLY valid JSON matching this structure.`;
     merchant: detectedMerchant,
     date: resolvedDate,
     paymentMethod,
-    confidence: detectedAmount > 0 ? (localCat.confidence || 0.88) : 0.6,
+    confidence: detectedAmount > 0 ? (localCat.confidence || 0.95) : 0.6,
     rawText: cleaned,
   };
 }

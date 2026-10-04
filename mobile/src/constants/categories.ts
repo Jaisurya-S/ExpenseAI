@@ -27,7 +27,15 @@ export const CATEGORIES: Record<ExpenseCategory, CategoryMeta> = {
     color: '#F97316',
     bgColor: 'rgba(249, 115, 22, 0.12)',
     gradient: ['#F97316', '#FB923C'],
-    keywords: ['coffee', 'tea', 'starbucks', 'cafe', 'mcdonalds', 'kfc', 'burger', 'pizza', 'subway', 'restaurant', 'lunch', 'dinner', 'breakfast', 'zomato', 'swiggy', 'snack', 'dine', 'treat', 'bakery'],
+    keywords: [
+      'tea', 'chai', 'coffee', 'cappuccino', 'latte', 'espresso', 'starbucks', 'cafe', 'mcdonalds', 'kfc',
+      'burger', 'pizza', 'subway', 'restaurant', 'lunch', 'dinner', 'breakfast', 'brunch', 'zomato', 'swiggy',
+      'snack', 'snacks', 'samosa', 'puff', 'biscuit', 'cookies', 'vada', 'dosa', 'idli', 'poori', 'puri',
+      'roti', 'chapati', 'paratha', 'naan', 'meals', 'thali', 'rice', 'biryani', 'curry', 'shawarma', 'roll',
+      'sandwich', 'toast', 'maggi', 'noodles', 'pasta', 'momos', 'chaat', 'panipuri', 'bhel', 'juice',
+      'lassi', 'shake', 'smoothie', 'soda', 'coke', 'pepsi', 'drink', 'beverage', 'water bottle', 'ice cream',
+      'kulfi', 'cake', 'pastry', 'bakery', 'sweet', 'sweets', 'dessert', 'treat', 'dine', 'pan', 'cigarette'
+    ],
   },
   Grocery: {
     id: 'Grocery',
@@ -36,7 +44,13 @@ export const CATEGORIES: Record<ExpenseCategory, CategoryMeta> = {
     color: '#10B981',
     bgColor: 'rgba(16, 185, 129, 0.12)',
     gradient: ['#10B981', '#34D399'],
-    keywords: ['supermarket', 'walmart', 'target', 'costco', 'whole foods', 'grocery', 'trader joe', 'milk', 'vegetables', 'fruits', 'instacart', 'blinkit', 'zepto', 'dmart', 'provisions', 'bread', 'eggs', 'meat'],
+    keywords: [
+      'grocery', 'groceries', 'supermarket', 'walmart', 'target', 'costco', 'whole foods', 'trader joe',
+      'dmart', 'reliance fresh', 'blinkit', 'zepto', 'instamart', 'bigbasket', 'instacart', 'milk', 'curd',
+      'yogurt', 'paneer', 'cheese', 'butter', 'ghee', 'bread', 'eggs', 'egg', 'meat', 'chicken', 'fish',
+      'vegetables', 'veggies', 'tomato', 'onion', 'potato', 'fruits', 'apple', 'banana', 'mango', 'provisions',
+      'rice bag', 'atta', 'flour', 'dal', 'pulses', 'oil', 'cooking oil', 'sugar', 'salt', 'spices', 'detergent', 'soap'
+    ],
   },
   Transport: {
     id: 'Transport',
@@ -45,7 +59,11 @@ export const CATEGORIES: Record<ExpenseCategory, CategoryMeta> = {
     color: '#0284C7',
     bgColor: 'rgba(2, 132, 199, 0.12)',
     gradient: ['#0284C7', '#38BDF8'],
-    keywords: ['uber', 'lyft', 'grab', 'ola', 'metro', 'subway', 'train', 'bus', 'gas', 'fuel', 'petrol', 'diesel', 'parking', 'toll', 'flight', 'airline', 'cab', 'auto', 'fastag'],
+    keywords: [
+      'uber', 'lyft', 'ola', 'rapido', 'cab', 'taxi', 'auto', 'rickshaw', 'e-rickshaw', 'auto fare',
+      'metro', 'subway', 'train', 'bus', 'bus ticket', 'train ticket', 'flight', 'airline', 'ticket',
+      'gas', 'fuel', 'petrol', 'diesel', 'cng', 'parking', 'toll', 'tollgate', 'fastag', 'bike', 'scooter'
+    ],
   },
   Shopping: {
     id: 'Shopping',
@@ -54,7 +72,11 @@ export const CATEGORIES: Record<ExpenseCategory, CategoryMeta> = {
     color: '#8B5CF6',
     bgColor: 'rgba(139, 92, 246, 0.12)',
     gradient: ['#8B5CF6', '#A78BFA'],
-    keywords: ['amazon', 'ebay', 'nike', 'adidas', 'zara', 'h&m', 'clothing', 'electronics', 'shoes', 'mall', 'flipkart', 'myntra', 'apparel', 'watch', 'gadget', 'apple store'],
+    keywords: [
+      'amazon', 'flipkart', 'myntra', 'ajio', 'meesho', 'ebay', 'nike', 'adidas', 'zara', 'h&m',
+      'clothing', 'clothes', 'shirt', 't-shirt', 'pants', 'jeans', 'dress', 'shoes', 'footwear',
+      'electronics', 'gadget', 'watch', 'mall', 'apparel', 'apple store'
+    ],
   },
   Bills: {
     id: 'Bills',
@@ -63,7 +85,11 @@ export const CATEGORIES: Record<ExpenseCategory, CategoryMeta> = {
     color: '#EC4899',
     bgColor: 'rgba(236, 72, 153, 0.12)',
     gradient: ['#EC4899', '#F472B6'],
-    keywords: ['electricity', 'water', 'gas bill', 'utility', 'wifi', 'internet', 'broadband', 'verizon', 'at&t', 't-mobile', 'phone bill', 'rent', 'insurance', 'recharge', 'airtel', 'jio', 'maintenance'],
+    keywords: [
+      'recharge', 'mobile recharge', 'electricity', 'current bill', 'eb bill', 'water bill', 'gas bill',
+      'lpg', 'cylinder', 'utility', 'wifi', 'internet', 'broadband', 'airtel', 'jio', 'vi', 'bsnl',
+      'verizon', 'at&t', 'phone bill', 'rent', 'house rent', 'maintenance', 'insurance'
+    ],
   },
   Entertainment: {
     id: 'Entertainment',
@@ -72,7 +98,10 @@ export const CATEGORIES: Record<ExpenseCategory, CategoryMeta> = {
     color: '#6366F1',
     bgColor: 'rgba(99, 102, 241, 0.12)',
     gradient: ['#6366F1', '#818CF8'],
-    keywords: ['netflix', 'spotify', 'hulu', 'disney', 'prime video', 'movie', 'cinema', 'theatre', 'concert', 'steam', 'playstation', 'xbox', 'game', 'pvr', 'hotstar', 'youtube premium'],
+    keywords: [
+      'netflix', 'spotify', 'prime video', 'amazon prime', 'hotstar', 'disney', 'youtube premium',
+      'movie', 'cinema', 'pvr', 'inox', 'theatre', 'concert', 'game', 'gaming', 'steam', 'playstation', 'xbox'
+    ],
   },
   Health: {
     id: 'Health',
@@ -81,7 +110,10 @@ export const CATEGORIES: Record<ExpenseCategory, CategoryMeta> = {
     color: '#EF4444',
     bgColor: 'rgba(239, 68, 68, 0.12)',
     gradient: ['#EF4444', '#F87171'],
-    keywords: ['pharmacy', 'medicine', 'doctor', 'hospital', 'clinic', 'dental', 'cvs', 'walgreens', 'gym', 'fitness', 'supplement', 'therapy', 'apollo', 'tests', 'consultation'],
+    keywords: [
+      'pharmacy', 'medicine', 'tablet', 'syrup', 'doctor', 'hospital', 'clinic', 'dental', 'gym',
+      'fitness', 'supplement', 'therapy', 'apollo', 'netmeds', 'pharmeasy', 'tests', 'consultation'
+    ],
   },
   Education: {
     id: 'Education',
@@ -90,7 +122,10 @@ export const CATEGORIES: Record<ExpenseCategory, CategoryMeta> = {
     color: '#0EA5E9',
     bgColor: 'rgba(14, 165, 233, 0.12)',
     gradient: ['#0EA5E9', '#38BDF8'],
-    keywords: ['udemy', 'coursera', 'book', 'tuition', 'course', 'college', 'school', 'exam', 'class', 'training', 'kindle', 'stationery'],
+    keywords: [
+      'udemy', 'coursera', 'book', 'tuition', 'course', 'college', 'school', 'exam', 'class',
+      'training', 'kindle', 'stationery', 'notebook', 'pen'
+    ],
   },
   Investment: {
     id: 'Investment',
@@ -99,7 +134,10 @@ export const CATEGORIES: Record<ExpenseCategory, CategoryMeta> = {
     color: '#059669',
     bgColor: 'rgba(5, 150, 105, 0.12)',
     gradient: ['#059669', '#10B981'],
-    keywords: ['stocks', 'crypto', 'mutual fund', 'sip', 'zerodha', 'robinhood', 'etf', 'gold', 'groww', 'binance', 'shares', 'fixed deposit'],
+    keywords: [
+      'stocks', 'crypto', 'mutual fund', 'sip', 'zerodha', 'groww', 'robinhood', 'etf', 'gold',
+      'shares', 'fixed deposit', 'fd', 'rd'
+    ],
   },
   Other: {
     id: 'Other',

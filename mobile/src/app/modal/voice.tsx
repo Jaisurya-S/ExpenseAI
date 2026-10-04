@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { useExpenseStore } from '../../store/useExpenseStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useAppTheme } from '../../hooks/use-theme';
-import { parseVoiceTranscript, deduplicateSpokenText } from '../../services/aiService';
+import { parseVoiceTranscript, deduplicateSpokenText, normalizeSpokenPhrases } from '../../services/aiService';
 import { ALL_CATEGORIES, CATEGORIES, PAYMENT_METHODS } from '../../constants/categories';
 import { ExpenseCategory, PaymentMethod, AIParseResult } from '../../types';
 import {
@@ -34,12 +34,15 @@ import {
 } from 'lucide-react-native';
 
 const VOICE_EXAMPLES = [
+  'Tea 20',
+  'Chai 10',
+  'Coffee 40',
+  'Auto 50',
+  'Milk 35',
   'Spent ₹450 for 2 coffees at Starbucks with UPI',
   'Uber ride to office 280 yesterday by card',
   'Bought groceries from Walmart 2500 in cash',
-  'Paid ₹3200 for electricity bill with NetBanking',
   'Swiggy dinner 480 paid with Google Pay',
-  'Netflix subscription 899 on credit card',
 ];
 
 export default function VoiceModal() {
@@ -184,7 +187,7 @@ export default function VoiceModal() {
 
           recognition.onend = () => {
             setIsRecording(false);
-            const current = deduplicateSpokenText(transcriptRef.current);
+            const current = normalizeSpokenPhrases(transcriptRef.current);
             if (current) {
               setTranscript(current);
               transcriptRef.current = current;
@@ -213,7 +216,7 @@ export default function VoiceModal() {
         recognitionRef.current.stop();
       } catch (e) {}
     }
-    const currentText = deduplicateSpokenText(transcriptRef.current);
+    const currentText = normalizeSpokenPhrases(transcriptRef.current);
     if (currentText) {
       setTranscript(currentText);
       transcriptRef.current = currentText;
