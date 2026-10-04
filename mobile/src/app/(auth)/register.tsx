@@ -134,17 +134,9 @@ export default function RegisterScreen() {
               style={[
                 styles.logoCard,
                 {
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-                  borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)',
-                  borderWidth: 1,
-                  paddingHorizontal: 20,
-                  paddingVertical: 12,
-                  borderRadius: 24,
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.96)' : '#FFFFFF',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.08)',
                   shadowColor: colors.cardShadow,
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.15,
-                  shadowRadius: 12,
-                  elevation: 2,
                 },
               ]}
             >
@@ -381,6 +373,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 22,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 3,
   },
   logoImage: {
     width: 200,

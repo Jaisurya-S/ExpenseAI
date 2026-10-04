@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   Platform,
   Alert,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -187,51 +188,50 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
-        {/* Top Header Bar */}
+        {/* Top Header Bar with Brand Logo & Profile */}
         <View style={styles.topBar}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => router.push('/(tabs)/profile')}
-            style={styles.userProfileBtn}
+          <View
+            style={[
+              styles.headerLogoContainer,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.95)' : '#FFFFFF',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.08)',
+                shadowColor: colors.cardShadow,
+              },
+            ]}
           >
-            <View
-              style={[
-                styles.avatarCircle,
-                {
-                  backgroundColor: colors.primaryLight,
-                  borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(29, 78, 216, 0.2)',
-                },
-              ]}
-            >
-              <Text style={[styles.avatarInitial, { color: colors.primary }]}>
-                {displayName.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-            <View>
-              <Text style={[styles.greetingText, { color: colors.textSecondary }]}>Welcome back,</Text>
-              <Text style={[styles.userNameText, { color: colors.text }]}>
-                {displayName}
-              </Text>
-            </View>
-          </TouchableOpacity>
+            <Image
+              source={require('../../../assets/images/logo.png')}
+              style={styles.headerLogoImage}
+              resizeMode="contain"
+            />
+          </View>
 
           <View style={styles.topBarActions}>
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={() => router.push('/(tabs)/profile')}
-              style={[
-                styles.headerActionBtn,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
-                  shadowColor: isDark ? '#000' : 'rgba(15, 23, 42, 0.04)',
-                },
-              ]}
+              style={styles.userProfileBtn}
             >
-              <Bell size={17} color={colors.textSecondary} />
-              {aiInsights.length > 0 && (
-                <View style={[styles.bellBadge, { backgroundColor: colors.danger }]} />
-              )}
+              <View
+                style={[
+                  styles.avatarCircle,
+                  {
+                    backgroundColor: colors.primaryLight,
+                    borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(29, 78, 216, 0.2)',
+                  },
+                ]}
+              >
+                <Text style={[styles.avatarInitial, { color: colors.primary }]}>
+                  {displayName.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.userInfoTextCol}>
+                <Text style={[styles.greetingText, { color: colors.textSecondary }]}>Welcome,</Text>
+                <Text style={[styles.userNameText, { color: colors.text }]} numberOfLines={1}>
+                  {displayName}
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
         </View>
@@ -399,29 +399,48 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
+  headerLogoContainer: {
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerLogoImage: {
+    width: 130,
+    height: 34,
+  },
+  userInfoTextCol: {
+    maxWidth: 120,
+  },
   userProfileBtn: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   avatarCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 8,
   },
   avatarInitial: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
   },
   greetingText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '500',
   },
   userNameText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     letterSpacing: -0.2,
   },
