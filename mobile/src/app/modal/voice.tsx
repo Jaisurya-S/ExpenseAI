@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { useExpenseStore } from '../../store/useExpenseStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useAppTheme } from '../../hooks/use-theme';
-import { parseVoiceTranscript } from '../../services/aiService';
+import { parseVoiceTranscript, deduplicateSpokenText } from '../../services/aiService';
 import { ALL_CATEGORIES, CATEGORIES, PAYMENT_METHODS } from '../../constants/categories';
 import { ExpenseCategory, PaymentMethod, AIParseResult } from '../../types';
 import {
@@ -29,6 +29,8 @@ import {
   Calendar,
   RefreshCw,
   Info,
+  CheckCircle2,
+  Zap,
 } from 'lucide-react-native';
 
 const VOICE_EXAMPLES = [
@@ -62,31 +64,62 @@ export default function VoiceModal() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('UPI');
   const [isSaving, setIsSaving] = useState(false);
 
+  // Keep ref to latest transcript so stopping never uses stale closure state
+  const transcriptRef = useRef('');
+  transcriptRef.current = transcript;
+
   // Web Speech Recognition reference
   const recognitionRef = useRef<any>(null);
 
   // Pulse animation for mic
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const waveAnim = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
+    let pulseLoop: Animated.CompositeAnimation | null = null;
+    let waveLoop: Animated.CompositeAnimation | null = null;
+
     if (isRecording) {
-      Animated.loop(
+      pulseLoop = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
             toValue: 1.25,
-            duration: 600,
+            duration: 500,
             useNativeDriver: Platform.OS !== 'web',
           }),
           Animated.timing(pulseAnim, {
             toValue: 1,
-            duration: 600,
+            duration: 500,
             useNativeDriver: Platform.OS !== 'web',
           }),
         ])
-      ).start();
+      );
+      pulseLoop.start();
+
+      waveLoop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(waveAnim, {
+            toValue: 1,
+            duration: 350,
+            useNativeDriver: Platform.OS !== 'web',
+          }),
+          Animated.timing(waveAnim, {
+            toValue: 0.3,
+            duration: 350,
+            useNativeDriver: Platform.OS !== 'web',
+          }),
+        ])
+      );
+      waveLoop.start();
     } else {
       pulseAnim.setValue(1);
+      waveAnim.setValue(0.3);
     }
+
+    return () => {
+      if (pulseLoop) pulseLoop.stop();
+      if (waveLoop) waveLoop.stop();
+    };
   }, [isRecording]);
 
   // Clean up speech recognition on unmount
@@ -100,94 +133,111 @@ export default function VoiceModal() {
     };
   }, []);
 
-  const startWebSpeechRecognition = () => {
-    if (typeof window === 'undefined') return;
+  const startSpeech = () => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        try {
+          const recognition = new SpeechRecognition();
+          recognition.continuous = false; // Prevents buffer duplication on Android Chrome
+          recognition.interimResults = true;
+          recognition.maxAlternatives = 1;
+          recognition.lang = 'en-IN';
 
-    if (!SpeechRecognition) {
-      setSpeechStatus('Speech recognition not supported in this browser. You can type or tap examples.');
-      return;
+          recognition.onstart = () => {
+            setSpeechStatus('Listening... Speak naturally now 🎙️');
+            setIsRecording(true);
+          };
+
+          recognition.onresult = (event: any) => {
+            let finalTranscript = '';
+            let interimTranscript = '';
+            for (let i = 0; i < event.results.length; ++i) {
+              const res = event.results[i];
+              if (res.isFinal) {
+                finalTranscript += res[0].transcript + ' ';
+              } else {
+                interimTranscript += res[0].transcript;
+              }
+            }
+            const raw = (finalTranscript + ' ' + interimTranscript).trim();
+            const deduplicated = deduplicateSpokenText(raw);
+            if (deduplicated) {
+              setTranscript(deduplicated);
+              transcriptRef.current = deduplicated;
+            }
+          };
+
+          recognition.onerror = (event: any) => {
+            console.warn('Speech recognition error:', event.error);
+            if (event.error === 'not-allowed') {
+              setSpeechStatus('Microphone permission needed. You can also type or choose an example below.');
+            } else if (event.error === 'no-speech') {
+              setSpeechStatus('No speech detected. Tap mic to try again or tap an example.');
+            } else {
+              setSpeechStatus(`Speech notice: ${event.error}. You can also type below.`);
+            }
+            setIsRecording(false);
+          };
+
+          recognition.onend = () => {
+            setIsRecording(false);
+            const current = deduplicateSpokenText(transcriptRef.current);
+            if (current) {
+              setTranscript(current);
+              transcriptRef.current = current;
+              handleProcessTranscript(current);
+            }
+          };
+
+          recognitionRef.current = recognition;
+          recognition.start();
+          return;
+        } catch (err) {
+          console.warn('Speech start error:', err);
+        }
+      }
     }
 
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-IN';
-
-      recognition.onstart = () => {
-        setSpeechStatus('Listening... Speak naturally now');
-      };
-
-      recognition.onresult = (event: any) => {
-        let currentTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          currentTranscript += event.results[i][0].transcript;
-        }
-        if (currentTranscript.trim()) {
-          setTranscript(currentTranscript);
-        }
-      };
-
-      recognition.onerror = (event: any) => {
-        console.warn('Speech recognition error:', event.error);
-        if (event.error === 'not-allowed') {
-          setSpeechStatus('Microphone access was denied. Please allow microphone permissions.');
-        } else {
-          setSpeechStatus(`Speech note: ${event.error}. You can use sample prompts below.`);
-        }
-        setIsRecording(false);
-      };
-
-      recognition.onend = () => {
-        setIsRecording(false);
-      };
-
-      recognitionRef.current = recognition;
-      recognition.start();
-    } catch (err: any) {
-      console.warn('Speech start error:', err);
-      setSpeechStatus('Could not access microphone.');
-      setIsRecording(false);
-    }
+    // Fallback if browser/platform speech recognition is unavailable
+    setIsRecording(true);
+    setSpeechStatus('Dictate your expense or choose a quick example below ✨');
   };
 
-  const stopWebSpeechRecognition = () => {
+  const stopSpeech = () => {
+    setIsRecording(false);
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
       } catch (e) {}
     }
+    const currentText = deduplicateSpokenText(transcriptRef.current);
+    if (currentText) {
+      setTranscript(currentText);
+      transcriptRef.current = currentText;
+      handleProcessTranscript(currentText);
+    }
   };
 
   const toggleRecording = () => {
     if (isRecording) {
-      setIsRecording(false);
-      stopWebSpeechRecognition();
-      if (transcript.trim()) {
-        handleProcessTranscript(transcript);
-      }
+      stopSpeech();
     } else {
-      setSpeechStatus('Listening... Speak naturally or tap a sample phrase');
-      setIsRecording(true);
-      if (Platform.OS === 'web') {
-        startWebSpeechRecognition();
-      } else {
-        setSpeechStatus('Tap the text box or use keyboard mic 🎙️ to dictate your expense');
-      }
+      startSpeech();
     }
   };
 
   const handleProcessTranscript = async (textToParse: string) => {
-    if (!textToParse.trim()) return;
+    const cleanText = textToParse.trim();
+    if (!cleanText) return;
 
     setIsProcessing(true);
-    setSpeechStatus('AI analyzing expense details...');
+    setSpeechStatus('✨ AI analyzing and structuring expense details...');
 
     try {
-      const result = await parseVoiceTranscript(textToParse);
+      const result = await parseVoiceTranscript(cleanText);
       setParsedResult(result);
 
       if (result.amount > 0) setAmount(result.amount.toString());
@@ -197,10 +247,10 @@ export default function VoiceModal() {
       if (result.date) setDate(result.date);
       if (result.paymentMethod) setPaymentMethod(result.paymentMethod);
 
-      setSpeechStatus(`✨ Extracted: ${result.description} • ${currency}${result.amount} (${result.category})`);
+      setSpeechStatus(`🎉 Extracted: ${currency}${result.amount} for ${result.description} (${result.category})`);
     } catch (err) {
       console.warn('Voice parse error:', err);
-      setSpeechStatus('Could not parse voice note. Please check values below.');
+      setSpeechStatus('Could not parse automatically. Please verify values below.');
     } finally {
       setIsProcessing(false);
       setIsRecording(false);
@@ -211,7 +261,7 @@ export default function VoiceModal() {
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
       if (Platform.OS === 'web') {
-        window.alert('Please verify the expense amount.');
+        window.alert('Please enter a valid expense amount.');
       } else {
         Alert.alert('Invalid Amount', 'Please verify the expense amount.');
       }
@@ -221,12 +271,14 @@ export default function VoiceModal() {
     setIsSaving(true);
     try {
       const userId = user?.uid || profile.uid || 'demo-user';
+      const cleanDesc = description.trim() || merchant.trim() || `${category} Expense`;
+
       await addExpense({
         userId,
         amount: amountNum,
         category,
-        description: description || merchant || 'Voice Expense',
-        merchant,
+        description: cleanDesc,
+        merchant: merchant.trim() || undefined,
         date,
         paymentMethod,
         inputMethod: 'voice',
@@ -238,7 +290,7 @@ export default function VoiceModal() {
       if (Platform.OS === 'web') {
         router.back();
       } else {
-        Alert.alert('Expense Added! 🎙️', `Recorded ${currency}${amountNum} for ${description || category}.`, [
+        Alert.alert('Expense Added! 🎙️', `Recorded ${currency}${amountNum} for ${cleanDesc}.`, [
           {
             text: 'OK',
             onPress: () => router.back(),
@@ -260,22 +312,22 @@ export default function VoiceModal() {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <View style={styles.container}>
         {/* Header */}
-        <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
+        <View style={[styles.header, { borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' }]}>
           <View style={styles.headerLeft}>
             <View
               style={[
                 styles.headerIconCircle,
                 {
-                  backgroundColor: isDark ? 'rgba(155, 93, 229, 0.2)' : 'rgba(124, 58, 237, 0.1)',
+                  backgroundColor: isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.12)',
                 },
               ]}
             >
-              <Mic size={20} color={colors.accentPurple} />
+              <Mic size={19} color="#8B5CF6" />
             </View>
             <View>
               <Text style={[styles.headerTitle, { color: colors.text }]}>Voice Expense</Text>
               <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
-                Speak Naturally • AI Structured
+                Speak Naturally · Instant AI Structuring
               </Text>
             </View>
           </View>
@@ -295,73 +347,88 @@ export default function VoiceModal() {
               styles.micCard,
               {
                 backgroundColor: colors.card,
-                borderColor: colors.cardBorder,
-                shadowColor: colors.cardShadow,
+                borderColor: isRecording
+                  ? '#EF4444'
+                  : isDark
+                  ? 'rgba(255, 255, 255, 0.08)'
+                  : 'rgba(0, 0, 0, 0.06)',
+                shadowColor: isDark ? '#000' : 'rgba(15, 23, 42, 0.08)',
               },
             ]}
           >
-            <Animated.View
-              style={[
-                styles.micPulseRing,
-                isRecording && { backgroundColor: isDark ? 'rgba(255, 107, 107, 0.2)' : 'rgba(220, 38, 38, 0.15)' },
-                { transform: [{ scale: pulseAnim }] },
-              ]}
-            >
+            {/* Animated Mic Button */}
+            <View style={styles.micButtonWrapper}>
+              <Animated.View
+                style={[
+                  styles.micPulseRing,
+                  {
+                    backgroundColor: isRecording
+                      ? 'rgba(239, 68, 68, 0.22)'
+                      : isDark
+                      ? 'rgba(139, 92, 246, 0.15)'
+                      : 'rgba(139, 92, 246, 0.1)',
+                    transform: [{ scale: pulseAnim }],
+                  },
+                ]}
+              />
               <TouchableOpacity
-                activeOpacity={0.8}
+                activeOpacity={0.85}
                 onPress={toggleRecording}
                 style={[
                   styles.micButton,
                   isRecording
-                    ? { backgroundColor: colors.danger }
+                    ? { backgroundColor: '#EF4444' }
                     : { backgroundColor: colors.primary },
                 ]}
               >
                 {isRecording ? (
-                  <MicOff size={36} color="#FFFFFF" />
+                  <MicOff size={34} color="#FFFFFF" />
                 ) : (
-                  <Mic size={36} color={colors.primaryText} />
+                  <Mic size={34} color="#FFFFFF" />
                 )}
               </TouchableOpacity>
-            </Animated.View>
+            </View>
 
             <Text style={[styles.recordingStatusText, { color: colors.text }]}>
               {isRecording
-                ? 'Listening to microphone... Tap to finish & process'
-                : 'Tap microphone to speak or choose an example below'}
+                ? 'Listening... Tap to finish & extract'
+                : 'Tap microphone to speak or type below'}
             </Text>
 
-            {speechStatus !== '' && (
-              <View
-                style={[
-                  styles.speechStatusBanner,
-                  {
-                    backgroundColor: isDark ? 'rgba(155, 93, 229, 0.12)' : 'rgba(124, 58, 237, 0.08)',
-                  },
-                ]}
-              >
-                <Info size={13} color={colors.accentPurple} />
-                <Text style={[styles.speechStatusText, { color: colors.accentPurple }]}>
-                  {speechStatus}
-                </Text>
-              </View>
-            )}
-
-            {/* Sound Wave simulation bars */}
+            {/* Sound Wave Simulation Bar */}
             {isRecording && (
               <View style={styles.waveformRow}>
                 {[14, 28, 42, 22, 36, 48, 20, 32, 16].map((h, i) => (
-                  <View
+                  <Animated.View
                     key={i}
                     style={[
                       styles.waveBar,
                       {
                         height: h,
                         backgroundColor: colors.primary,
+                        opacity: waveAnim,
                       },
                     ]}
                   />
                 ))}
+              </View>
+            )}
+
+            {/* Speech Status Banner */}
+            {speechStatus !== '' && (
+              <View
+                style={[
+                  styles.speechStatusBanner,
+                  {
+                    backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.08)',
+                    borderColor: isDark ? 'rgba(139, 92, 246, 0.3)' : 'rgba(139, 92, 246, 0.2)',
+                  },
+                ]}
+              >
+                <Sparkles size={13} color="#8B5CF6" />
+                <Text style={styles.speechStatusText}>
+                  {speechStatus}
+                </Text>
               </View>
             )}
 
@@ -370,26 +437,43 @@ export default function VoiceModal() {
               style={[
                 styles.transcriptBox,
                 {
-                  backgroundColor: colors.inputBg,
-                  borderColor: colors.inputBorder,
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
                 },
               ]}
             >
               <TextInput
                 style={[styles.transcriptInput, { color: colors.text }]}
                 multiline
-                placeholder="Say something like: 'Spent 300 on lunch at Subway with UPI'"
+                placeholder="Say or type e.g. 'Spent 350 for lunch at Subway with UPI'"
                 placeholderTextColor={colors.textMuted}
                 value={transcript}
-                onChangeText={setTranscript}
+                onChangeText={(text) => {
+                  setTranscript(text);
+                  transcriptRef.current = text;
+                }}
               />
-              {transcript !== '' && !isRecording && (
+              {transcript.trim() !== '' && !isRecording && (
                 <TouchableOpacity
+                  activeOpacity={0.8}
                   onPress={() => handleProcessTranscript(transcript)}
-                  style={[styles.reparseBtn, { backgroundColor: colors.primaryLight }]}
+                  disabled={isProcessing}
+                  style={[
+                    styles.reparseBtn,
+                    {
+                      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(29, 78, 216, 0.1)',
+                      borderColor: isDark ? 'rgba(59, 130, 246, 0.4)' : 'rgba(29, 78, 216, 0.2)',
+                    },
+                  ]}
                 >
-                  <RefreshCw size={14} color={colors.primary} />
-                  <Text style={[styles.reparseText, { color: colors.primary }]}>Analyze with AI</Text>
+                  {isProcessing ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <>
+                      <Sparkles size={13} color={colors.primary} />
+                      <Text style={[styles.reparseText, { color: colors.primary }]}>Analyze with AI</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
               )}
             </View>
@@ -397,8 +481,8 @@ export default function VoiceModal() {
 
           {/* Quick Voice Examples Chips */}
           <View style={styles.examplesSection}>
-            <Text style={[styles.examplesTitle, { color: colors.textSecondary }]}>
-              TRY VOICE PROMPTS
+            <Text style={[styles.examplesTitle, { color: colors.textMuted }]}>
+              TRY SAMPLE VOICE PHRASES
             </Text>
             <View style={styles.examplesList}>
               {VOICE_EXAMPLES.map((ex, idx) => (
@@ -407,17 +491,17 @@ export default function VoiceModal() {
                   activeOpacity={0.7}
                   onPress={() => {
                     setTranscript(ex);
+                    transcriptRef.current = ex;
                     handleProcessTranscript(ex);
                   }}
                   style={[
                     styles.exampleChip,
                     {
                       backgroundColor: colors.card,
-                      borderColor: colors.cardBorder,
+                      borderColor: isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.05)',
                     },
                   ]}
                 >
-                  <Sparkles size={12} color={colors.primary} style={{ marginRight: 6 }} />
                   <Text style={[styles.exampleText, { color: colors.textSecondary }]}>{ex}</Text>
                 </TouchableOpacity>
               ))}
@@ -431,8 +515,8 @@ export default function VoiceModal() {
                 styles.formCard,
                 {
                   backgroundColor: colors.card,
-                  borderColor: colors.cardBorder,
-                  shadowColor: colors.cardShadow,
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+                  shadowColor: isDark ? '#000' : 'rgba(15, 23, 42, 0.08)',
                 },
               ]}
             >
@@ -440,24 +524,25 @@ export default function VoiceModal() {
                 style={[
                   styles.aiBadgeBanner,
                   {
-                    backgroundColor: colors.primaryLight,
+                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.16)' : 'rgba(16, 185, 129, 0.1)',
+                    borderColor: isDark ? 'rgba(16, 185, 129, 0.3)' : 'rgba(16, 185, 129, 0.2)',
                   },
                 ]}
               >
-                <Sparkles size={14} color={colors.primary} />
-                <Text style={[styles.aiBadgeBannerText, { color: colors.primary }]}>
-                  AI EXTRACTED & STRUCTURED EXPENSE
+                <CheckCircle2 size={14} color="#10B981" />
+                <Text style={styles.aiBadgeBannerText}>
+                  AI EXTRACTED EXPENSE
                 </Text>
               </View>
 
               {/* Amount */}
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>EXTRACTED AMOUNT</Text>
+              <Text style={[styles.inputLabel, { color: colors.textMuted }]}>EXPENSE AMOUNT ({currency})</Text>
               <View
                 style={[
                   styles.inputRow,
                   {
-                    backgroundColor: colors.inputBg,
-                    borderColor: colors.inputBorder,
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
                   },
                 ]}
               >
@@ -473,13 +558,13 @@ export default function VoiceModal() {
               </View>
 
               {/* Description */}
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>DESCRIPTION</Text>
+              <Text style={[styles.inputLabel, { color: colors.textMuted }]}>DESCRIPTION</Text>
               <View
                 style={[
                   styles.inputRow,
                   {
-                    backgroundColor: colors.inputBg,
-                    borderColor: colors.inputBorder,
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
                   },
                 ]}
               >
@@ -487,36 +572,36 @@ export default function VoiceModal() {
                   style={[styles.textInput, { color: colors.text }]}
                   value={description}
                   onChangeText={setDescription}
-                  placeholder="Expense description"
+                  placeholder="e.g. Lunch at Subway"
                   placeholderTextColor={colors.textMuted}
                 />
               </View>
 
               {/* Merchant */}
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                MERCHANT (AUTO-DETECTED)
+              <Text style={[styles.inputLabel, { color: colors.textMuted }]}>
+                MERCHANT / STORE
               </Text>
               <View
                 style={[
                   styles.inputRow,
                   {
-                    backgroundColor: colors.inputBg,
-                    borderColor: colors.inputBorder,
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
                   },
                 ]}
               >
-                <Building2 size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
+                <Building2 size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
                 <TextInput
                   style={[styles.textInput, { color: colors.text }]}
                   value={merchant}
                   onChangeText={setMerchant}
-                  placeholder="e.g. Starbucks, Uber"
+                  placeholder="e.g. Starbucks, Uber, Subway"
                   placeholderTextColor={colors.textMuted}
                 />
               </View>
 
               {/* Category */}
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>CATEGORY</Text>
+              <Text style={[styles.inputLabel, { color: colors.textMuted }]}>CATEGORY</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -532,8 +617,8 @@ export default function VoiceModal() {
                       style={[
                         styles.catChip,
                         {
-                          backgroundColor: isSelected ? meta.bgColor : colors.inputBg,
-                          borderColor: isSelected ? meta.color : colors.inputBorder,
+                          backgroundColor: isSelected ? meta.bgColor : isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)',
+                          borderColor: isSelected ? meta.color : isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
                         },
                       ]}
                     >
@@ -554,7 +639,7 @@ export default function VoiceModal() {
               </ScrollView>
 
               {/* Payment Method */}
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>PAYMENT METHOD</Text>
+              <Text style={[styles.inputLabel, { color: colors.textMuted }]}>PAYMENT METHOD</Text>
               <View style={styles.paymentMethodRow}>
                 {PAYMENT_METHODS.map((pm) => {
                   const isSelected = paymentMethod === pm.id;
@@ -565,8 +650,14 @@ export default function VoiceModal() {
                       style={[
                         styles.pmChip,
                         {
-                          backgroundColor: isSelected ? colors.primaryLight : colors.inputBg,
-                          borderColor: isSelected ? colors.primary : colors.inputBorder,
+                          backgroundColor: isSelected
+                            ? isDark
+                              ? 'rgba(59, 130, 246, 0.2)'
+                              : 'rgba(29, 78, 216, 0.1)'
+                            : isDark
+                            ? 'rgba(255, 255, 255, 0.04)'
+                            : 'rgba(0, 0, 0, 0.03)',
+                          borderColor: isSelected ? colors.primary : 'transparent',
                         },
                       ]}
                     >
@@ -588,18 +679,18 @@ export default function VoiceModal() {
 
               {/* Save Confirm Button */}
               <TouchableOpacity
-                activeOpacity={0.8}
+                activeOpacity={0.85}
                 onPress={handleConfirmSave}
                 disabled={isSaving}
                 style={[styles.confirmSaveBtn, { backgroundColor: colors.primary }]}
               >
                 {isSaving ? (
-                  <ActivityIndicator color={colors.primaryText} />
+                  <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <>
-                    <Check size={20} color={colors.primaryText} />
-                    <Text style={[styles.confirmSaveBtnText, { color: colors.primaryText }]}>
-                      Confirm & Save Voice Expense
+                    <Check size={18} color="#FFFFFF" />
+                    <Text style={styles.confirmSaveBtnText}>
+                      Save Voice Expense
                     </Text>
                   </>
                 )}
@@ -624,8 +715,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'android' ? 24 : 12,
-    paddingBottom: 16,
+    paddingTop: Platform.OS === 'android' ? 20 : 10,
+    paddingBottom: 14,
     borderBottomWidth: 1,
   },
   headerLeft: {
@@ -633,20 +724,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
+    letterSpacing: -0.3,
   },
   headerSub: {
     fontSize: 11,
     fontWeight: '500',
+    marginTop: 1,
   },
   closeBtn: {
     padding: 6,
@@ -657,42 +750,47 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 16,
     paddingBottom: 40,
-    gap: 16,
+    gap: 14,
   },
   micCard: {
     borderRadius: 24,
-    padding: 24,
+    padding: 22,
     alignItems: 'center',
     borderWidth: 1,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 10,
     elevation: 3,
   },
-  micPulseRing: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  micButtonWrapper: {
+    width: 90,
+    height: 90,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  micPulseRing: {
+    position: 'absolute',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
   },
   micButton: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     alignItems: 'center',
     justifyContent: 'center',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4,
   },
   recordingStatusText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
     maxWidth: 260,
   },
   speechStatusBanner: {
@@ -701,19 +799,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
+    borderWidth: 1,
     marginBottom: 12,
     gap: 6,
   },
   speechStatusText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: '#8B5CF6',
   },
   waveformRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    height: 50,
-    marginBottom: 14,
+    height: 40,
+    marginBottom: 12,
   },
   waveBar: {
     width: 4,
@@ -722,12 +822,12 @@ const styles = StyleSheet.create({
   transcriptBox: {
     width: '100%',
     borderRadius: 16,
-    padding: 14,
+    padding: 12,
     borderWidth: 1,
   },
   transcriptInput: {
     fontSize: 14,
-    minHeight: 56,
+    minHeight: 52,
     textAlignVertical: 'top',
   },
   reparseBtn: {
@@ -737,32 +837,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
-    marginTop: 8,
-    gap: 6,
+    borderWidth: 1,
+    marginTop: 6,
+    gap: 5,
   },
   reparseText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   examplesSection: {
-    marginBottom: 8,
+    marginBottom: 4,
   },
   examplesTitle: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 1.2,
-    marginBottom: 10,
+    letterSpacing: 1,
+    marginBottom: 8,
     paddingHorizontal: 4,
   },
   examplesList: {
-    gap: 8,
+    gap: 6,
   },
   exampleChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 12,
     borderWidth: 1,
   },
   exampleText: {
@@ -772,10 +873,10 @@ const styles = StyleSheet.create({
   },
   formCard: {
     borderRadius: 24,
-    padding: 20,
+    padding: 18,
     borderWidth: 1,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 10,
     elevation: 3,
   },
@@ -783,21 +884,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 10,
-    marginBottom: 16,
+    borderWidth: 1,
+    marginBottom: 14,
     gap: 6,
   },
   aiBadgeBannerText: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  inputLabel: {
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1,
+    color: '#10B981',
+    letterSpacing: 0.5,
+  },
+  inputLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
     marginBottom: 6,
-    marginTop: 12,
+    marginTop: 10,
   },
   inputRow: {
     flexDirection: 'row',
@@ -828,8 +932,8 @@ const styles = StyleSheet.create({
   },
   catChip: {
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
+    paddingVertical: 6.5,
+    borderRadius: 10,
     borderWidth: 1,
   },
   catChipText: {
@@ -855,13 +959,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
-    paddingVertical: 14,
-    marginTop: 24,
+    borderRadius: 14,
+    paddingVertical: 13,
+    marginTop: 20,
     gap: 8,
   },
   confirmSaveBtnText: {
-    fontSize: 15,
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '800',
   },
 });

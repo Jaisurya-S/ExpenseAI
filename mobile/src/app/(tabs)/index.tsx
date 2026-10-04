@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,48 +16,151 @@ import { useExpenseStore } from '../../store/useExpenseStore';
 import { HeroBalanceCard } from '../../components/home/HeroBalanceCard';
 import { QuickActionGrid } from '../../components/home/QuickActionGrid';
 import { AIBudgetInsightCard } from '../../components/home/AIBudgetInsightCard';
-import { ExpenseCard } from '../../components/common/ExpenseCard';
+import { TransactionCard } from '../../components/common/TransactionCard';
 import { generateSpendingInsights } from '../../services/aiService';
-import { Bell, Sparkles, ChevronRight, PlusCircle } from 'lucide-react-native';
+import { Bell, Sparkles, ChevronRight, PlusCircle, ArrowDownLeft, ArrowUpRight, TrendingUp } from 'lucide-react-native';
 import { useAppTheme } from '../../hooks/use-theme';
-import { Expense } from '../../types';
+import { Expense, Income, UnifiedTransaction } from '../../types';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { profile, user } = useAuthStore();
-  const { expenses, budgets, deleteExpense, setDraftExpense } = useExpenseStore();
+  const {
+    expenses,
+    incomes,
+    budgets,
+    deleteExpense,
+    deleteIncome,
+    setDraftExpense,
+    setDraftIncome,
+  } = useExpenseStore();
   const { colors, isDark } = useAppTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [aiInsights, setAiInsights] = useState<string[]>([]);
 
+  const currency = profile.currency || '₹';
+
+  // Dates & Month filters
   const currentMonthKey = new Date().toISOString().slice(0, 7);
-  const currentMonthExpenses = expenses.filter((e) => e.date?.startsWith(currentMonthKey));
-  const totalSpentMonth = currentMonthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const monthName = new Date().toLocaleString('default', { month: 'long' });
 
-  const handleEditExpense = (expense: Expense) => {
-    setDraftExpense(expense);
-    router.push('/modal/add-expense');
-  };
+  // Calculations
+  const totalIncomeAllTime = useMemo(
+    () => incomes.reduce((sum, i) => sum + (Number(i.amount) || 0), 0),
+    [incomes]
+  );
+  const totalExpenseAllTime = useMemo(
+    () => expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0),
+    [expenses]
+  );
 
-  const handleDeleteExpense = (id: string) => {
-    if (Platform.OS === 'web') {
-      if (window.confirm('Are you sure you want to delete this expense?')) {
-        deleteExpense(id);
-      }
-    } else {
-      Alert.alert('Delete Expense', 'Are you sure you want to delete this expense?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => deleteExpense(id) },
-      ]);
+  // Available Balance = Total Inflows - Total Outflows
+  const availableBalance = totalIncomeAllTime - totalExpenseAllTime;
+
+  // Monthly stats
+  const currentMonthIncomes = useMemo(
+    () => incomes.filter((i) => i.date?.startsWith(currentMonthKey)),
+    [incomes, currentMonthKey]
+  );
+  const currentMonthExpenses = useMemo(
+    () => expenses.filter((e) => e.date?.startsWith(currentMonthKey)),
+    [expenses, currentMonthKey]
+  );
+
+  const monthIncomeTotal = currentMonthIncomes.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+  const monthExpenseTotal = currentMonthExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const monthNetSavings = monthIncomeTotal - monthExpenseTotal;
+
+  // Overall monthly budget limit
+  const overallBudgetObj = budgets.find((b) => b.isOverall);
+  const categoryBudgetsSum = budgets
+    .filter((b) => !b.isOverall)
+    .reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+  const totalMonthlyBudget = overallBudgetObj?.amount || categoryBudgetsSum || profile.totalBudgetLimit || 0;
+
+  // Unified Transactions (sorted newest first)
+  const unifiedTransactions = useMemo(() => {
+    const list: UnifiedTransaction[] = [];
+
+    incomes.forEach((inc) => {
+      list.push({
+        id: inc.id,
+        type: 'income',
+        amount: inc.amount,
+        categoryOrSource: inc.source,
+        description: inc.description || inc.source,
+        merchantOrPayer: inc.payer,
+        date: inc.date,
+        paymentMethod: inc.paymentMethod,
+        receiptUrl: inc.receiptUrl,
+        notes: inc.notes,
+        isOpeningBalance: inc.isOpeningBalance,
+        rawIncome: inc,
+        createdAt: inc.createdAt,
+      });
+    });
+
+    expenses.forEach((exp) => {
+      list.push({
+        id: exp.id,
+        type: 'expense',
+        amount: exp.amount,
+        categoryOrSource: exp.category,
+        description: exp.description || exp.merchant || exp.category,
+        merchantOrPayer: exp.merchant,
+        date: exp.date,
+        paymentMethod: exp.paymentMethod,
+        receiptUrl: exp.receiptUrl,
+        notes: exp.notes,
+        rawExpense: exp,
+        createdAt: exp.createdAt,
+      });
+    });
+
+    list.sort((a, b) => {
+      const dateCmp = (b.date || '').localeCompare(a.date || '');
+      if (dateCmp !== 0) return dateCmp;
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
+    });
+
+    return list;
+  }, [expenses, incomes]);
+
+  const recentTransactions = unifiedTransactions.slice(0, 5);
+
+  const handleEditTransaction = (tx: UnifiedTransaction) => {
+    if (tx.type === 'income' && tx.rawIncome) {
+      setDraftIncome(tx.rawIncome);
+      router.push('/modal/add-income');
+    } else if (tx.rawExpense) {
+      setDraftExpense(tx.rawExpense);
+      router.push('/modal/add-expense');
     }
   };
 
-  // Total monthly budget is sum of budgets or profile target limit
-  const totalBudget = budgets.length > 0
-    ? budgets.reduce((sum, b) => sum + (b.amount || 0), 0)
-    : profile.totalBudgetLimit || 0;
+  const handleDeleteTransaction = (tx: UnifiedTransaction) => {
+    const title = tx.type === 'income' ? 'Delete Income' : 'Delete Expense';
+    const msg = `Are you sure you want to delete this ${tx.type}?`;
 
-  const monthName = new Date().toLocaleString('default', { month: 'long' });
+    const performDelete = () => {
+      if (tx.type === 'income') {
+        deleteIncome(tx.id);
+      } else {
+        deleteExpense(tx.id);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(msg)) {
+        performDelete();
+      }
+    } else {
+      Alert.alert(title, msg, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: performDelete },
+      ]);
+    }
+  };
 
   useEffect(() => {
     generateSpendingInsights(currentMonthExpenses, budgets).then((insights) => {
@@ -72,7 +175,6 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const recentExpenses = expenses.slice(0, 5);
   const displayName = profile.displayName || user?.displayName || user?.email?.split('@')[0] || 'User';
 
   return (
@@ -97,7 +199,7 @@ export default function HomeScreen() {
                 styles.avatarCircle,
                 {
                   backgroundColor: colors.primaryLight,
-                  borderColor: colors.primary,
+                  borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(29, 78, 216, 0.2)',
                 },
               ]}
             >
@@ -106,7 +208,7 @@ export default function HomeScreen() {
               </Text>
             </View>
             <View>
-              <Text style={[styles.greetingText, { color: colors.textSecondary }]}>Hello,</Text>
+              <Text style={[styles.greetingText, { color: colors.textSecondary }]}>Welcome back,</Text>
               <Text style={[styles.userNameText, { color: colors.text }]}>
                 {displayName}
               </Text>
@@ -116,28 +218,13 @@ export default function HomeScreen() {
           <View style={styles.topBarActions}>
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={() => router.push('/modal/ai-chat')}
-              style={[
-                styles.headerActionBtn,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.cardBorder,
-                  shadowColor: colors.cardShadow,
-                },
-              ]}
-            >
-              <Sparkles size={17} color={colors.primary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.8}
               onPress={() => router.push('/(tabs)/profile')}
               style={[
                 styles.headerActionBtn,
                 {
                   backgroundColor: colors.card,
-                  borderColor: colors.cardBorder,
-                  shadowColor: colors.cardShadow,
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+                  shadowColor: isDark ? '#000' : 'rgba(15, 23, 42, 0.04)',
                 },
               ]}
             >
@@ -149,25 +236,108 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* 1. Hero Balance / Spend Tracker */}
+        {/* 1. Hero Balance & Income/Expense Card */}
         <HeroBalanceCard
-          totalSpent={totalSpentMonth}
-          monthlyBudget={totalBudget}
+          availableBalance={availableBalance}
+          totalIncome={totalIncomeAllTime}
+          totalExpenses={totalExpenseAllTime}
+          monthIncome={monthIncomeTotal}
+          monthExpenses={monthExpenseTotal}
+          monthlyBudget={totalMonthlyBudget}
           monthName={monthName}
+          onAddMoneyPress={() => router.push('/modal/add-income')}
+          onSetBudgetPress={() => router.push('/(tabs)/budgets')}
         />
 
-        {/* 2. Actions: Add, Scan, Voice, Advisor */}
+        {/* 2. Quick Action Buttons */}
         <QuickActionGrid
           onScanPress={() => router.push('/modal/scan')}
           onVoicePress={() => router.push('/modal/voice')}
-          onManualPress={() => router.push('/modal/add-expense')}
+          onBudgetPress={() => router.push('/(tabs)/budgets')}
           onAiChatPress={() => router.push('/modal/ai-chat')}
         />
 
-        {/* 3. AI Insights Card */}
+        {/* 3. Monthly Cash Flow Bar */}
+        {(monthIncomeTotal > 0 || monthExpenseTotal > 0) && (
+          <View
+            style={[
+              styles.cashflowCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.05)',
+                shadowColor: isDark ? '#000' : 'rgba(15, 23, 42, 0.04)',
+              },
+            ]}
+          >
+            <View style={styles.cashflowHeader}>
+              <View style={styles.cashflowTitleRow}>
+                <TrendingUp size={15} color={monthNetSavings >= 0 ? '#10B981' : colors.danger} />
+                <Text style={[styles.cashflowTitle, { color: colors.text }]}>
+                  {monthName} Cash Flow
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.savingsBadge,
+                  {
+                    backgroundColor:
+                      monthNetSavings >= 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.1)',
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.savingsBadgeText,
+                    { color: monthNetSavings >= 0 ? '#10B981' : colors.danger },
+                  ]}
+                >
+                  Net: {monthNetSavings >= 0 ? '+' : ''}{currency}{monthNetSavings.toLocaleString('en-IN')}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.ratioBarContainer}>
+              <View
+                style={[
+                  styles.ratioBarIncome,
+                  {
+                    flex: Math.max(1, monthIncomeTotal),
+                    backgroundColor: '#10B981',
+                  },
+                ]}
+              />
+              <View
+                style={[
+                  styles.ratioBarExpense,
+                  {
+                    flex: Math.max(1, monthExpenseTotal),
+                    backgroundColor: colors.danger,
+                  },
+                ]}
+              />
+            </View>
+
+            <View style={styles.ratioLegendRow}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
+                <Text style={[styles.legendText, { color: colors.textSecondary }]}>
+                  +{currency}{monthIncomeTotal.toLocaleString()} in
+                </Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: colors.danger }]} />
+                <Text style={[styles.legendText, { color: colors.textSecondary }]}>
+                  -{currency}{monthExpenseTotal.toLocaleString()} out
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* 4. AI Insights Card */}
         <AIBudgetInsightCard insights={aiInsights} />
 
-        {/* 4. Recent Transactions */}
+        {/* 5. Recent Activity */}
         <View style={styles.recentSection}>
           <View style={styles.recentHeader}>
             <Text style={[styles.recentTitle, { color: colors.text }]}>Recent Activity</Text>
@@ -175,37 +345,32 @@ export default function HomeScreen() {
               onPress={() => router.push('/(tabs)/expenses')}
               style={styles.viewAllBtn}
             >
-              <Text style={[styles.viewAllText, { color: colors.primary }]}>View All</Text>
+              <Text style={[styles.viewAllText, { color: colors.primary }]}>See all</Text>
               <ChevronRight size={14} color={colors.primary} />
             </TouchableOpacity>
           </View>
 
-          {recentExpenses.length === 0 ? (
+          {recentTransactions.length === 0 ? (
             <View
               style={[
                 styles.emptyRecent,
                 {
                   backgroundColor: colors.card,
-                  borderColor: colors.cardBorder,
-                  shadowColor: colors.cardShadow,
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)',
                 },
               ]}
             >
-              <PlusCircle size={32} color={colors.primary} style={{ marginBottom: 10, opacity: 0.8 }} />
-              <Text style={[styles.emptyRecentText, { color: colors.text }]}>
-                No expenses logged yet
-              </Text>
-              <Text style={[styles.emptyRecentSub, { color: colors.textSecondary }]}>
-                Tap Add, Scan, or Voice above to record your first transaction.
+              <Text style={[styles.emptyRecentText, { color: colors.textSecondary }]}>
+                No recent transactions
               </Text>
             </View>
           ) : (
-            recentExpenses.map((expense) => (
-              <ExpenseCard
-                key={expense.id}
-                expense={expense}
-                onPress={() => handleEditExpense(expense)}
-                onDelete={() => handleDeleteExpense(expense.id)}
+            recentTransactions.map((tx) => (
+              <TransactionCard
+                key={`${tx.type}-${tx.id}`}
+                transaction={tx}
+                onPress={() => handleEditTransaction(tx)}
+                onDelete={() => handleDeleteTransaction(tx)}
               />
             ))
           )}
@@ -214,6 +379,7 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -285,8 +451,77 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
   },
+  cashflowCard: {
+    marginHorizontal: 16,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 18,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  cashflowHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  cashflowTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  cashflowTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  savingsBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  savingsBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  ratioBarContainer: {
+    height: 8,
+    flexDirection: 'row',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 10,
+    gap: 2,
+  },
+  ratioBarIncome: {
+    borderRadius: 4,
+  },
+  ratioBarExpense: {
+    borderRadius: 4,
+  },
+  ratioLegendRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  legendText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
   recentSection: {
     marginHorizontal: 16,
+    marginTop: 4,
   },
   recentHeader: {
     flexDirection: 'row',
@@ -298,6 +533,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: -0.3,
+  },
+  recentSub: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 1,
   },
   viewAllBtn: {
     flexDirection: 'row',
@@ -327,6 +567,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '400',
     textAlign: 'center',
-    maxWidth: 260,
+    maxWidth: 280,
   },
 });
+

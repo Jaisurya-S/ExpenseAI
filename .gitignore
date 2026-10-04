@@ -4,6 +4,7 @@ package-lock.json
 
 # Expo & Build
 .expo/
+.firebase/
 dist/
 web-build/
 expo-env.d.ts

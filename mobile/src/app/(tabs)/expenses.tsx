@@ -8,75 +8,208 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Platform,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useExpenseStore } from '../../store/useExpenseStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useAppTheme } from '../../hooks/use-theme';
-import { ExpenseCard } from '../../components/common/ExpenseCard';
-import { ALL_CATEGORIES, CATEGORIES, PAYMENT_METHODS } from '../../constants/categories';
-import { ExpenseCategory, PaymentMethod, Expense } from '../../types';
-import { Search, Plus, Mic, Camera, X } from 'lucide-react-native';
+import { TransactionCard } from '../../components/common/TransactionCard';
+import { ALL_CATEGORIES, CATEGORIES, ALL_INCOME_SOURCES, INCOME_SOURCES } from '../../constants/categories';
+import { ExpenseCategory, IncomeSource, PaymentMethod, Expense, Income, UnifiedTransaction } from '../../types';
+import {
+  Search,
+  Plus,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Filter,
+  ArrowUpDown,
+  X,
+  SlidersHorizontal,
+} from 'lucide-react-native';
 
-import { Alert } from 'react-native';
+type SortOption = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc';
 
 export default function ExpensesScreen() {
   const router = useRouter();
   const { profile } = useAuthStore();
   const currency = profile.currency || '₹';
-  const { expenses, deleteExpense, setDraftExpense } = useExpenseStore();
+  const {
+    expenses,
+    incomes,
+    deleteExpense,
+    deleteIncome,
+    setDraftExpense,
+    setDraftIncome,
+  } = useExpenseStore();
   const { colors, isDark } = useAppTheme();
 
-  const handleEditExpense = (expense: Expense) => {
-    setDraftExpense(expense);
-    router.push('/modal/add-expense');
-  };
-
-  const handleDeleteExpense = (id: string) => {
-    if (Platform.OS === 'web') {
-      if (window.confirm('Are you sure you want to delete this expense?')) {
-        deleteExpense(id);
-      }
-    } else {
-      Alert.alert('Delete Expense', 'Are you sure you want to delete this expense?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => deleteExpense(id) },
-      ]);
-    }
-  };
-
   const [search, setSearch] = useState('');
-  const [selectedCat, setSelectedCat] = useState<ExpenseCategory | 'ALL'>('ALL');
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | 'ALL'>('ALL');
+  const [selectedType, setSelectedType] = useState<'ALL' | 'expense' | 'income'>('ALL');
+  const [selectedTag, setSelectedTag] = useState<string>('ALL');
+  const [sortBy, setSortBy] = useState<SortOption>('date-desc');
 
-  // Filtered expenses
-  const filteredExpenses = useMemo(() => {
-    return expenses.filter((e) => {
-      const matchesSearch =
-        search === '' ||
-        e.description.toLowerCase().includes(search.toLowerCase()) ||
-        (e.merchant && e.merchant.toLowerCase().includes(search.toLowerCase())) ||
-        e.category.toLowerCase().includes(search.toLowerCase());
+  // Unified list construction
+  const allTransactions = useMemo(() => {
+    const list: UnifiedTransaction[] = [];
 
-      const matchesCat = selectedCat === 'ALL' || e.category === selectedCat;
-      const matchesMethod = selectedMethod === 'ALL' || e.paymentMethod === selectedMethod;
-
-      return matchesSearch && matchesCat && matchesMethod;
+    incomes.forEach((inc) => {
+      list.push({
+        id: inc.id,
+        type: 'income',
+        amount: inc.amount,
+        categoryOrSource: inc.source,
+        description: inc.description || inc.source,
+        merchantOrPayer: inc.payer,
+        date: inc.date,
+        paymentMethod: inc.paymentMethod,
+        receiptUrl: inc.receiptUrl,
+        notes: inc.notes,
+        isOpeningBalance: inc.isOpeningBalance,
+        rawIncome: inc,
+        createdAt: inc.createdAt,
+      });
     });
-  }, [expenses, search, selectedCat, selectedMethod]);
 
-  const totalFilteredAmount = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    expenses.forEach((exp) => {
+      list.push({
+        id: exp.id,
+        type: 'expense',
+        amount: exp.amount,
+        categoryOrSource: exp.category,
+        description: exp.description || exp.merchant || exp.category,
+        merchantOrPayer: exp.merchant,
+        date: exp.date,
+        paymentMethod: exp.paymentMethod,
+        receiptUrl: exp.receiptUrl,
+        notes: exp.notes,
+        rawExpense: exp,
+        createdAt: exp.createdAt,
+      });
+    });
+
+    return list;
+  }, [expenses, incomes]);
+
+  // Filter & Search
+  const filteredTransactions = useMemo(() => {
+    return allTransactions
+      .filter((tx) => {
+        // Type filter
+        if (selectedType !== 'ALL' && tx.type !== selectedType) {
+          return false;
+        }
+
+        // Category / Source filter
+        if (selectedTag !== 'ALL' && tx.categoryOrSource !== selectedTag) {
+          return false;
+        }
+
+        // Search query
+        if (search.trim()) {
+          const q = search.toLowerCase();
+          const matchDesc = (tx.description || '').toLowerCase().includes(q);
+          const matchMerchant = (tx.merchantOrPayer || '').toLowerCase().includes(q);
+          const matchCat = (tx.categoryOrSource || '').toLowerCase().includes(q);
+          const matchNotes = (tx.notes || '').toLowerCase().includes(q);
+          const matchMethod = (tx.paymentMethod || '').toLowerCase().includes(q);
+
+          if (!matchDesc && !matchMerchant && !matchCat && !matchNotes && !matchMethod) {
+            return false;
+          }
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortBy === 'date-desc') {
+          const cmp = (b.date || '').localeCompare(a.date || '');
+          if (cmp !== 0) return cmp;
+          return (b.createdAt || '').localeCompare(a.createdAt || '');
+        }
+        if (sortBy === 'date-asc') {
+          const cmp = (a.date || '').localeCompare(b.date || '');
+          if (cmp !== 0) return cmp;
+          return (a.createdAt || '').localeCompare(b.createdAt || '');
+        }
+        if (sortBy === 'amount-desc') {
+          return (b.amount || 0) - (a.amount || 0);
+        }
+        if (sortBy === 'amount-asc') {
+          return (a.amount || 0) - (b.amount || 0);
+        }
+        return 0;
+      });
+  }, [allTransactions, search, selectedType, selectedTag, sortBy]);
+
+  // Financial statistics of filtered transactions
+  const totalFilteredIncome = filteredTransactions
+    .filter((tx) => tx.type === 'income')
+    .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+
+  const totalFilteredExpense = filteredTransactions
+    .filter((tx) => tx.type === 'expense')
+    .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+
+  const netFilteredCashflow = totalFilteredIncome - totalFilteredExpense;
 
   // Group by date
-  const groupedExpenses = useMemo(() => {
-    const groups: { [key: string]: Expense[] } = {};
-    filteredExpenses.forEach((item) => {
+  const groupedTransactions = useMemo(() => {
+    const groups: { [key: string]: UnifiedTransaction[] } = {};
+    filteredTransactions.forEach((item) => {
       const d = item.date || 'Unknown Date';
       if (!groups[d]) groups[d] = [];
       groups[d].push(item);
     });
     return groups;
-  }, [filteredExpenses]);
+  }, [filteredTransactions]);
+
+  const handleEdit = (tx: UnifiedTransaction) => {
+    if (tx.type === 'income' && tx.rawIncome) {
+      setDraftIncome(tx.rawIncome);
+      router.push('/modal/add-income');
+    } else if (tx.rawExpense) {
+      setDraftExpense(tx.rawExpense);
+      router.push('/modal/add-expense');
+    }
+  };
+
+  const handleDelete = (tx: UnifiedTransaction) => {
+    const title = tx.type === 'income' ? 'Delete Income' : 'Delete Expense';
+    const msg = `Are you sure you want to delete this ${tx.type}?`;
+
+    const performDelete = () => {
+      if (tx.type === 'income') {
+        deleteIncome(tx.id);
+      } else {
+        deleteExpense(tx.id);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(msg)) {
+        performDelete();
+      }
+    } else {
+      Alert.alert(title, msg, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: performDelete },
+      ]);
+    }
+  };
+
+  const toggleSort = () => {
+    const order: SortOption[] = ['date-desc', 'date-asc', 'amount-desc', 'amount-asc'];
+    const nextIdx = (order.indexOf(sortBy) + 1) % order.length;
+    setSortBy(order[nextIdx]);
+  };
+
+  const sortLabels: Record<SortOption, string> = {
+    'date-desc': 'Newest First',
+    'date-asc': 'Oldest First',
+    'amount-desc': 'Highest Amount',
+    'amount-asc': 'Lowest Amount',
+  };
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
@@ -84,74 +217,161 @@ export default function ExpensesScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>All Expenses</Text>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>Transactions</Text>
             <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
-              {filteredExpenses.length} items • Total: {currency}
-              {totalFilteredAmount.toLocaleString()}
+              {filteredTransactions.length} records • Net:{' '}
+              <Text style={{ color: netFilteredCashflow >= 0 ? '#10B981' : colors.danger, fontWeight: '700' }}>
+                {netFilteredCashflow >= 0 ? '+' : ''}
+                {currency}
+                {netFilteredCashflow.toLocaleString()}
+              </Text>
             </Text>
           </View>
 
           <View style={styles.headerRightActions}>
             <TouchableOpacity
-              onPress={() => router.push('/modal/scan')}
-              style={[
-                styles.smallActionBtn,
-                {
-                  backgroundColor: isDark ? 'rgba(0, 187, 249, 0.15)' : 'rgba(2, 132, 199, 0.1)',
-                },
-              ]}
+              onPress={() => router.push('/modal/add-income')}
+              style={[styles.actionBtn, { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5' }]}
             >
-              <Camera size={16} color={colors.accent} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => router.push('/modal/voice')}
-              style={[
-                styles.smallActionBtn,
-                {
-                  backgroundColor: isDark ? 'rgba(155, 93, 229, 0.15)' : 'rgba(124, 58, 237, 0.1)',
-                },
-              ]}
-            >
-              <Mic size={16} color={colors.accentPurple} />
+              <ArrowDownLeft size={14} color="#10B981" />
+              <Text style={[styles.actionBtnText, { color: '#10B981' }]}>+ Income</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => router.push('/modal/add-expense')}
-              style={[styles.smallActionBtn, { backgroundColor: colors.primary }]}
+              style={[styles.actionBtn, { backgroundColor: colors.primary }]}
             >
-              <Plus size={18} color={colors.primaryText} />
+              <Plus size={14} color="#FFFFFF" />
+              <Text style={[styles.actionBtnText, { color: '#FFFFFF' }]}>+ Expense</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Search Bar */}
-        <View
-          style={[
-            styles.searchContainer,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.cardBorder,
-              shadowColor: colors.cardShadow,
-            },
-          ]}
-        >
-          <Search size={18} color={colors.textSecondary} style={styles.searchIcon} />
-          <TextInput
-            style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Search by merchant, note, or item..."
-            placeholderTextColor={colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search !== '' && (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <X size={16} color={colors.textSecondary} />
-            </TouchableOpacity>
-          )}
+        {/* Search Bar & Sort Button */}
+        <View style={styles.searchRow}>
+          <View
+            style={[
+              styles.searchContainer,
+              {
+                backgroundColor: colors.card,
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+                shadowColor: isDark ? '#000' : 'rgba(15, 23, 42, 0.04)',
+              },
+            ]}
+          >
+            <Search size={16} color={colors.textSecondary} style={styles.searchIcon} />
+            <TextInput
+              style={[styles.searchInput, { color: colors.text }]}
+              placeholder="Search transactions..."
+              placeholderTextColor={colors.textMuted}
+              value={search}
+              onChangeText={setSearch}
+            />
+            {search !== '' && (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <X size={16} color={colors.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <TouchableOpacity
+            onPress={toggleSort}
+            style={[
+              styles.sortBtn,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.cardBorder,
+              },
+            ]}
+          >
+            <ArrowUpDown size={15} color={colors.primary} />
+          </TouchableOpacity>
         </View>
 
-        {/* Category Horizontal Filter Chips */}
+        {/* Type Filter Pills: All | Expense | Income */}
+        <View style={styles.typeFilterRow}>
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedType('ALL');
+              setSelectedTag('ALL');
+            }}
+            style={[
+              styles.typeTab,
+              {
+                backgroundColor: selectedType === 'ALL' ? colors.primaryLight : colors.card,
+                borderColor: selectedType === 'ALL' ? colors.primary : colors.cardBorder,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.typeTabText,
+                {
+                  color: selectedType === 'ALL' ? colors.primary : colors.textSecondary,
+                  fontWeight: selectedType === 'ALL' ? '800' : '600',
+                },
+              ]}
+            >
+              All Activity
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedType('expense');
+              setSelectedTag('ALL');
+            }}
+            style={[
+              styles.typeTab,
+              {
+                backgroundColor:
+                  selectedType === 'expense' ? 'rgba(239, 68, 68, 0.12)' : colors.card,
+                borderColor: selectedType === 'expense' ? colors.danger : colors.cardBorder,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.typeTabText,
+                {
+                  color: selectedType === 'expense' ? colors.danger : colors.textSecondary,
+                  fontWeight: selectedType === 'expense' ? '800' : '600',
+                },
+              ]}
+            >
+              Expenses
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedType('income');
+              setSelectedTag('ALL');
+            }}
+            style={[
+              styles.typeTab,
+              {
+                backgroundColor:
+                  selectedType === 'income' ? 'rgba(16, 185, 129, 0.12)' : colors.card,
+                borderColor: selectedType === 'income' ? '#10B981' : colors.cardBorder,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.typeTabText,
+                {
+                  color: selectedType === 'income' ? '#10B981' : colors.textSecondary,
+                  fontWeight: selectedType === 'income' ? '800' : '600',
+                },
+              ]}
+            >
+              Income
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Category / Source Sub-Filter Chips */}
         <View style={styles.filterScrollWrapper}>
           <ScrollView
             horizontal
@@ -159,12 +379,12 @@ export default function ExpensesScreen() {
             contentContainerStyle={styles.categoryFilterRow}
           >
             <TouchableOpacity
-              onPress={() => setSelectedCat('ALL')}
+              onPress={() => setSelectedTag('ALL')}
               style={[
                 styles.categoryChip,
                 {
-                  backgroundColor: selectedCat === 'ALL' ? colors.primaryLight : colors.card,
-                  borderColor: selectedCat === 'ALL' ? colors.primary : colors.cardBorder,
+                  backgroundColor: selectedTag === 'ALL' ? colors.primaryLight : colors.card,
+                  borderColor: selectedTag === 'ALL' ? colors.primary : colors.cardBorder,
                 },
               ]}
             >
@@ -172,54 +392,95 @@ export default function ExpensesScreen() {
                 style={[
                   styles.categoryChipText,
                   {
-                    color: selectedCat === 'ALL' ? colors.primary : colors.textSecondary,
-                    fontWeight: selectedCat === 'ALL' ? '700' : '500',
+                    color: selectedTag === 'ALL' ? colors.primary : colors.textSecondary,
+                    fontWeight: selectedTag === 'ALL' ? '700' : '500',
                   },
                 ]}
               >
-                All Categories
+                All Tags
               </Text>
             </TouchableOpacity>
 
-            {ALL_CATEGORIES.map((cat) => {
-              const meta = CATEGORIES[cat];
-              const isSelected = selectedCat === cat;
-              return (
-                <TouchableOpacity
-                  key={cat}
-                  onPress={() => setSelectedCat(isSelected ? 'ALL' : cat)}
-                  style={[
-                    styles.categoryChip,
-                    {
-                      backgroundColor: isSelected ? meta.bgColor : colors.card,
-                      borderColor: isSelected ? meta.color : colors.cardBorder,
-                    },
-                  ]}
-                >
-                  <Text
+            {/* If Income selected, show income sources */}
+            {selectedType === 'income' &&
+              ALL_INCOME_SOURCES.map((src) => {
+                const meta = INCOME_SOURCES[src];
+                const isSelected = selectedTag === src;
+                return (
+                  <TouchableOpacity
+                    key={src}
+                    onPress={() => setSelectedTag(isSelected ? 'ALL' : src)}
                     style={[
-                      styles.categoryChipText,
+                      styles.categoryChip,
                       {
-                        color: isSelected ? meta.color : colors.textSecondary,
-                        fontWeight: isSelected ? '700' : '500',
+                        backgroundColor: isSelected ? meta.bgColor : colors.card,
+                        borderColor: isSelected ? meta.color : colors.cardBorder,
                       },
                     ]}
                   >
-                    {meta.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+                    <Text
+                      style={[
+                        styles.categoryChipText,
+                        {
+                          color: isSelected ? meta.color : colors.textSecondary,
+                          fontWeight: isSelected ? '700' : '500',
+                        },
+                      ]}
+                    >
+                      {meta.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+
+            {/* If Expense or ALL selected, show expense categories */}
+            {selectedType !== 'income' &&
+              ALL_CATEGORIES.map((cat) => {
+                const meta = CATEGORIES[cat];
+                const isSelected = selectedTag === cat;
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    onPress={() => setSelectedTag(isSelected ? 'ALL' : cat)}
+                    style={[
+                      styles.categoryChip,
+                      {
+                        backgroundColor: isSelected ? meta.bgColor : colors.card,
+                        borderColor: isSelected ? meta.color : colors.cardBorder,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.categoryChipText,
+                        {
+                          color: isSelected ? meta.color : colors.textSecondary,
+                          fontWeight: isSelected ? '700' : '500',
+                        },
+                      ]}
+                    >
+                      {meta.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
           </ScrollView>
         </View>
 
-        {/* Expenses List */}
+        {/* Sort Indicator Pill */}
+        <View style={styles.sortIndicatorRow}>
+          <Text style={[styles.sortIndicatorText, { color: colors.textMuted }]}>
+            Sorted by: <Text style={{ color: colors.primary, fontWeight: '700' }}>{sortLabels[sortBy]}</Text>
+          </Text>
+        </View>
+
+        {/* Unified Transactions List */}
         <ScrollView
           style={styles.listScrollView}
           contentContainerStyle={styles.listContentContainer}
           showsVerticalScrollIndicator={false}
         >
-          {Object.keys(groupedExpenses).length === 0 ? (
+          {Object.keys(groupedTransactions).length === 0 ? (
             <View
               style={[
                 styles.emptyContainer,
@@ -230,16 +491,21 @@ export default function ExpensesScreen() {
               ]}
             >
               <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                No matching expenses found
+                No transactions found
               </Text>
               <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
-                Try adjusting your search filters or record a new expense.
+                Try adjusting your search criteria or add new income/expenses.
               </Text>
             </View>
           ) : (
-            Object.keys(groupedExpenses).map((dateStr) => {
-              const dateItems = groupedExpenses[dateStr];
-              const dateTotal = dateItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+            Object.keys(groupedTransactions).map((dateStr) => {
+              const dateItems = groupedTransactions[dateStr];
+              const dateIncome = dateItems
+                .filter((i) => i.type === 'income')
+                .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+              const dateExpense = dateItems
+                .filter((i) => i.type === 'expense')
+                .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
               let dateDisplay = dateStr;
               const todayStr = new Date().toISOString().split('T')[0];
@@ -265,18 +531,27 @@ export default function ExpensesScreen() {
                     <Text style={[styles.dateGroupTitle, { color: colors.textSecondary }]}>
                       {dateDisplay}
                     </Text>
-                    <Text style={[styles.dateGroupTotal, { color: colors.danger }]}>
-                      -{currency}
-                      {dateTotal.toLocaleString()}
-                    </Text>
+
+                    <View style={styles.dateGroupTotalsRow}>
+                      {dateIncome > 0 && (
+                        <Text style={[styles.dateGroupIncome, { color: '#10B981' }]}>
+                          +{currency}{dateIncome.toLocaleString()}
+                        </Text>
+                      )}
+                      {dateExpense > 0 && (
+                        <Text style={[styles.dateGroupExpense, { color: colors.danger }]}>
+                          -{currency}{dateExpense.toLocaleString()}
+                        </Text>
+                      )}
+                    </View>
                   </View>
 
-                  {dateItems.map((exp) => (
-                    <ExpenseCard
-                      key={exp.id}
-                      expense={exp}
-                      onPress={() => handleEditExpense(exp)}
-                      onDelete={() => handleDeleteExpense(exp.id)}
+                  {dateItems.map((tx) => (
+                    <TransactionCard
+                      key={`${tx.type}-${tx.id}`}
+                      transaction={tx}
+                      onPress={() => handleEdit(tx)}
+                      onDelete={() => handleDelete(tx)}
                     />
                   ))}
                 </View>
@@ -302,7 +577,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: Platform.OS === 'android' ? 24 : 12,
-    paddingBottom: 12,
+    paddingBottom: 10,
   },
   headerTitle: {
     fontSize: 22,
@@ -311,7 +586,7 @@ const styles = StyleSheet.create({
   },
   headerSub: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
     marginTop: 2,
   },
   headerRightActions: {
@@ -319,22 +594,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  smallActionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  actionBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 12,
+    gap: 4,
   },
-  searchContainer: {
+  actionBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
-    paddingHorizontal: 14,
+    marginBottom: 10,
+    gap: 8,
+  },
+  searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
     borderRadius: 14,
     borderWidth: 1,
-    height: 44,
-    marginBottom: 10,
+    height: 42,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -345,23 +632,59 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
+  },
+  sortBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  typeFilterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 8,
+    marginBottom: 8,
+  },
+  typeTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 6,
+    borderRadius: 11,
+    borderWidth: 1,
+    gap: 4,
+  },
+  typeTabText: {
+    fontSize: 11,
   },
   filterScrollWrapper: {
-    marginBottom: 12,
+    marginBottom: 8,
   },
   categoryFilterRow: {
     paddingHorizontal: 16,
-    gap: 8,
+    gap: 6,
   },
   categoryChip: {
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
     borderWidth: 1,
   },
   categoryChipText: {
-    fontSize: 12,
+    fontSize: 11,
+  },
+  sortIndicatorRow: {
+    paddingHorizontal: 18,
+    marginBottom: 6,
+  },
+  sortIndicatorText: {
+    fontSize: 10,
+    fontWeight: '500',
   },
   listScrollView: {
     flex: 1,
@@ -385,8 +708,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  dateGroupTotal: {
-    fontSize: 12,
+  dateGroupTotalsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dateGroupIncome: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  dateGroupExpense: {
+    fontSize: 11,
     fontWeight: '700',
   },
   emptyContainer: {
@@ -406,3 +738,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+

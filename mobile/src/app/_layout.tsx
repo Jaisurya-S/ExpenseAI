@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '../store/useAuthStore';
 import { expenseService } from '../services/expenseService';
+import { incomeService } from '../services/incomeService';
 import { budgetService } from '../services/budgetService';
 import { useExpenseStore } from '../store/useExpenseStore';
 import { useAppTheme } from '../hooks/use-theme';
@@ -13,7 +14,7 @@ const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const { initAuth, user, profile, isInitialized } = useAuthStore();
-  const { setExpenses, setBudgets } = useExpenseStore();
+  const { setExpenses, setIncomes, setBudgets } = useExpenseStore();
   const { isDark, colors } = useAppTheme();
 
   useEffect(() => {
@@ -29,12 +30,16 @@ export default function RootLayout() {
     const unsubExpenses = expenseService.subscribeUserExpenses(userId, (data) => {
       setExpenses(data);
     });
+    const unsubIncomes = incomeService.subscribeUserIncomes(userId, (data) => {
+      setIncomes(data);
+    });
     const unsubBudgets = budgetService.subscribeUserBudgets(userId, (data) => {
       setBudgets(data);
     });
 
     return () => {
       unsubExpenses();
+      unsubIncomes();
       unsubBudgets();
     };
   }, [user?.uid, profile.uid]);
@@ -80,6 +85,13 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen
+          name="modal/add-income"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name="modal/ai-chat"
           options={{
             presentation: 'modal',
@@ -113,3 +125,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+

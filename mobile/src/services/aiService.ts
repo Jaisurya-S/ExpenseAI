@@ -89,23 +89,44 @@ Return ONLY a valid JSON object with {"category": "...", "confidence": 0.95}`;
 }
 
 /**
- * 3. Parse Voice & Natural Language Input
+ * Helper: Deduplicate stuttered words or repeated phrase chunks from speech recognition
+ * e.g., "add add add 500 rupees add 500 rupees on milk" -> "add 500 rupees on milk"
  */
+export function deduplicateSpokenText(text: string): string {
+  if (!text) return '';
+  let cleaned = text.trim();
+
+  // 1. Remove consecutive identical single words: "add add add" -> "add"
+  cleaned = cleaned.replace(/\b([a-zA-Z0-9₹$€£]+)(?:\s+\1\b)+/gi, '$1');
+
+  // 2. Remove repeating multi-word phrases (from 6 words down to 2 words)
+  for (let len = 6; len >= 2; len--) {
+    const regex = new RegExp(`\\b((?:[\\w₹$€£\\.]+\\s+){${len - 1}}[\\w₹$€£\\.]+)(?:\\s+\\1)+`, 'gi');
+    cleaned = cleaned.replace(regex, '$1');
+  }
+
+  // 3. Remove progressive stuttering prefixes like "add 500 rupees add 500 rupees on milk"
+  // Match prefix repeated before an extension: (phrase) (phrase ... extension) -> phrase ... extension
+  cleaned = cleaned.replace(/\b(.{4,40}?)\s+\1\b/gi, '$1');
+
+  return cleaned.replace(/\s+/g, ' ').trim();
+}
+
 /**
  * Helper: Convert spoken number words to numeric values
- * e.g., "five hundred", "two thousand five hundred", "1.5k", "20k"
+ * e.g., "five hundred", "two thousand five hundred", "1.5k", "20k", "two lakh"
  */
 function parseNumberWords(text: string): number | null {
-  const clean = text.toLowerCase().trim();
+  const clean = deduplicateSpokenText(text).toLowerCase().trim();
 
   // Match "1.5k", "2.5k", "10k"
-  const kMatch = clean.match(/(\d+(?:\.\d+)?)\s*k\b/i);
+  const kMatch = clean.match(/\b(\d+(?:\.\d+)?)\s*k\b/i);
   if (kMatch) {
     return parseFloat(kMatch[1]) * 1000;
   }
 
   // Match "1.5 lakh", "2 lakh"
-  const lakhMatch = clean.match(/(\d+(?:\.\d+)?)\s*(?:lakh|lac)s?\b/i);
+  const lakhMatch = clean.match(/\b(\d+(?:\.\d+)?)\s*(?:lakh|lac)s?\b/i);
   if (lakhMatch) {
     return parseFloat(lakhMatch[1]) * 100000;
   }
@@ -127,12 +148,12 @@ function parseNumberWords(text: string): number | null {
   const words = clean.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
   let total = 0;
   let current = 0;
-  let foundNumber = false;
+  let foundWordNumber = false;
 
   for (const word of words) {
     if (wordMap[word] !== undefined) {
       current += wordMap[word];
-      foundNumber = true;
+      foundWordNumber = true;
     } else if (scaleMap[word] !== undefined) {
       if (current === 0) current = 1;
       current *= scaleMap[word];
@@ -140,22 +161,19 @@ function parseNumberWords(text: string): number | null {
         total += current;
         current = 0;
       }
-      foundNumber = true;
-    } else if (!isNaN(parseFloat(word)) && isFinite(Number(word))) {
-      current += parseFloat(word);
-      foundNumber = true;
+      foundWordNumber = true;
     }
   }
 
   total += current;
-  return foundNumber && total > 0 ? total : null;
+  return foundWordNumber && total > 0 ? total : null;
 }
 
 /**
  * Helper: Smart heuristic amount extractor from natural language voice transcript
  */
 function extractAmountFromText(text: string): number {
-  const clean = text.toLowerCase();
+  const clean = deduplicateSpokenText(text).toLowerCase();
 
   // 1. Explicit currency / price indicators (Highest priority)
   // e.g. "₹350", "rs 500", "500 rupees", "400 bucks", "$50", "350 inr", "paid 600", "spent 250", "for 120"
@@ -166,7 +184,7 @@ function extractAmountFromText(text: string): number {
   ];
 
   for (const pattern of patterns) {
-    const match = text.match(pattern);
+    const match = clean.match(pattern);
     if (match && parseFloat(match[1]) > 0) {
       return parseFloat(match[1]);
     }
@@ -179,7 +197,7 @@ function extractAmountFromText(text: string): number {
   }
 
   // 3. Score all numbers in string: penalize quantities (e.g., "2 coffees", "3 shirts")
-  const numberTokens = [...text.matchAll(/\b(\d+(?:\.\d{1,2})?)\b/g)];
+  const numberTokens = [...clean.matchAll(/\b(\d+(?:\.\d{1,2})?)\b/g)];
   if (numberTokens.length > 0) {
     let bestNum = 0;
     let bestScore = -1;
@@ -187,8 +205,8 @@ function extractAmountFromText(text: string): number {
     for (const match of numberTokens) {
       const val = parseFloat(match[1]);
       const index = match.index || 0;
-      const afterText = text.slice(index + match[0].length, index + match[0].length + 15).toLowerCase();
-      const beforeText = text.slice(Math.max(0, index - 15), index).toLowerCase();
+      const afterText = clean.slice(index + match[0].length, index + match[0].length + 15).toLowerCase();
+      const beforeText = clean.slice(Math.max(0, index - 15), index).toLowerCase();
 
       let score = 1;
       // Penalize small quantities like "2 coffees", "3 tickets", "1 pizza", "4 pcs"
@@ -196,7 +214,7 @@ function extractAmountFromText(text: string): number {
         score -= 2;
       }
       // Boost if preceded by payment/expense verbs
-      if (/(spent|paid|for|gave|total|cost|price)/i.test(beforeText)) {
+      if (/(spent|paid|for|gave|total|cost|price|add|bill)/i.test(beforeText)) {
         score += 3;
       }
       // Higher monetary values are more likely to be amounts rather than counts
@@ -272,20 +290,36 @@ function extractMerchantFromText(text: string): string {
  */
 export async function parseVoiceTranscript(transcript: string): Promise<AIParseResult> {
   const today = new Date().toISOString().split('T')[0];
-  const cleaned = transcript.trim();
+  const cleaned = deduplicateSpokenText(transcript);
 
-  // Try OpenRouter AI for high accuracy natural language parsing
+  if (!cleaned) {
+    return {
+      amount: 0,
+      category: 'Other',
+      description: 'Voice Expense',
+      merchant: '',
+      date: today,
+      paymentMethod: 'UPI',
+      confidence: 0,
+      rawText: '',
+    };
+  }
+
+  // Try OpenRouter AI with 7-second timeout for quick responsiveness
   try {
     if (OPENROUTER_API_KEY && cleaned.length > 0) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 7000);
+
       const systemPrompt = `You are a precision AI financial expense extractor. Today's reference date is ${today}.
 Your task is to parse spoken voice transcripts or natural language financial inputs into structured expense data with high accuracy.
 
 RULES:
-1. "amount" (number): The actual monetary cost. CRITICAL: Distinguish between item quantities (e.g. "3 coffees", "2 tickets") and the actual price paid (e.g. "spent 450 for 3 coffees" -> amount is 450, NOT 3). Resolve spoken numbers like "five hundred" -> 500, "1.5k" -> 1500, "two thousand" -> 2000.
+1. "amount" (number): The actual monetary cost. CRITICAL: Distinguish between item quantities (e.g. "3 coffees", "2 tickets") and the actual price paid (e.g. "spent 450 for 3 coffees" -> amount is 450, NOT 3). Resolve spoken numbers like "five hundred" -> 500, "1.5k" -> 1500, "two thousand" -> 2000. If an amount or phrase is stuttered/repeated by voice input, extract ONLY the single intended transaction amount, DO NOT sum repeated values.
 2. "category": Choose EXACTLY ONE from: [Food, Grocery, Transport, Shopping, Bills, Entertainment, Health, Education, Investment, Other].
    - Food: restaurants, cafes, snacks, delivery (Swiggy/Zomato), tea/coffee, fast food.
-   - Grocery: supermarkets, daily essentials, vegetables, fruits, Blinkit, Zepto, Walmart.
-   - Transport: taxi, uber, ola, rapido, bus, train, metro, fuel, petrol, diesel, toll, flights.
+   - Grocery: supermarkets, daily essentials, vegetables, fruits, Blinkit, Zepto, Walmart, groceries.
+   - Transport: taxi, uber, ola, rapido, bus, train, metro, fuel, petrol, diesel, toll, auto, flights.
    - Shopping: clothes, electronics, shoes, Amazon, Flipkart, retail merchandise.
    - Bills: electricity, water, gas, broadband, recharge, rent, mobile bill, utilities.
    - Entertainment: movies, Netflix, Spotify, gaming, concerts, subscriptions.
@@ -293,16 +327,11 @@ RULES:
    - Education: courses, tuition, books, exam fees, Udemy.
    - Investment: stocks, crypto, mutual funds, SIP, gold.
    - Other: miscellaneous.
-3. "description": Clean, professional, concise summary title (e.g. "Coffee at Starbucks", "Uber to Airport", "Weekly Groceries").
-4. "merchant": Vendor or merchant name if mentioned (e.g. "Starbucks", "Uber", "Walmart", "Swiggy", "Amazon"), or empty string if not mentioned.
+3. "description": Clean, concise title (e.g. "Coffee at Starbucks", "Uber to Office", "Grocery Shopping").
+4. "merchant": Vendor or merchant name if mentioned (e.g. "Starbucks", "Uber", "Walmart", "Swiggy", "Amazon"), or empty string.
 5. "date": ISO format (YYYY-MM-DD). Accurately calculate relative expressions like "yesterday", "day before yesterday", "last night", "3 days ago", or "today".
 6. "paymentMethod": One of: [UPI, Card, Cash, NetBanking, Wallet, Other].
-   - UPI: GPay, PhonePe, Paytm UPI, BHIM, scanned QR, UPI.
-   - Card: Credit card, debit card, Visa, Mastercard.
-   - Cash: cash, paper money.
-   - NetBanking: net banking, bank transfer, NEFT, IMPS.
-   - Wallet: Paytm wallet, Amazon Pay wallet.
-7. "confidence": Confidence score between 0.80 and 0.99 based on clarity.
+7. "confidence": Confidence score between 0.85 and 0.99.
 
 FEW-SHOT EXAMPLES:
 Input: "Spent 450 for 2 coffees at Starbucks paid with UPI"
@@ -315,7 +344,7 @@ Input: "Bought two thousand five hundred groceries from Walmart in cash"
 Output: {"amount": 2500, "category": "Grocery", "description": "Groceries from Walmart", "merchant": "Walmart", "date": "${today}", "paymentMethod": "Cash", "confidence": 0.96}
 
 Input: "Electricity bill 3200 paid with netbanking"
-Output: {"amount": 3200, "category": "Bills", "description": "Electricity Bill Payment", "merchant": "", "date": "${today}", "paymentMethod": "NetBanking", "confidence": 0.97}
+Output: {"amount": 3200, "category": "Bills", "description": "Electricity Bill", "merchant": "", "date": "${today}", "paymentMethod": "NetBanking", "confidence": 0.97}
 
 Return ONLY valid JSON matching this structure.`;
 
@@ -333,7 +362,10 @@ Return ONLY valid JSON matching this structure.`;
           ],
           temperature: 0.1,
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const data = await response.json();
@@ -359,7 +391,7 @@ Return ONLY valid JSON matching this structure.`;
     console.warn("AI Voice parse fallback to smart local NLP:", err);
   }
 
-  // High Accuracy Local NLP Fallback
+  // Robust High Accuracy Local NLP Fallback
   const detectedAmount = extractAmountFromText(cleaned);
   const detectedMerchant = extractMerchantFromText(cleaned);
   const localCat = categorizeLocally(cleaned, detectedMerchant);
@@ -396,6 +428,7 @@ Return ONLY valid JSON matching this structure.`;
     rawText: cleaned,
   };
 }
+
 
 /**
  * 4. Scan Receipt / Bill AI Vision Extraction
@@ -520,6 +553,7 @@ export async function generateSpendingInsights(expenses: Expense[], budgets: Bud
 
   // Check budgets
   for (const b of budgets) {
+    if (!b.category) continue;
     const spent = catTotals[b.category] || 0;
     const ratio = spent / (b.amount || 1);
     if (ratio >= 1.0) {

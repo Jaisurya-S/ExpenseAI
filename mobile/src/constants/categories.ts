@@ -1,4 +1,4 @@
-import { ExpenseCategory, PaymentMethod } from '../types';
+import { ExpenseCategory, IncomeSource, PaymentMethod } from '../types';
 
 export interface CategoryMeta {
   id: ExpenseCategory;
@@ -8,6 +8,15 @@ export interface CategoryMeta {
   bgColor: string;
   gradient: [string, string];
   keywords: string[];
+}
+
+export interface IncomeSourceMeta {
+  id: IncomeSource;
+  label: string;
+  iconName: string;
+  color: string;
+  bgColor: string;
+  gradient: [string, string];
 }
 
 export const CATEGORIES: Record<ExpenseCategory, CategoryMeta> = {
@@ -103,6 +112,105 @@ export const CATEGORIES: Record<ExpenseCategory, CategoryMeta> = {
   },
 };
 
+export const INCOME_SOURCES: Record<IncomeSource, IncomeSourceMeta> = {
+  Salary: {
+    id: 'Salary',
+    label: 'Salary',
+    iconName: 'Briefcase',
+    color: '#10B981',
+    bgColor: 'rgba(16, 185, 129, 0.12)',
+    gradient: ['#10B981', '#34D399'],
+  },
+  Freelance: {
+    id: 'Freelance',
+    label: 'Freelance',
+    iconName: 'Laptop',
+    color: '#06B6D4',
+    bgColor: 'rgba(6, 182, 212, 0.12)',
+    gradient: ['#06B6D4', '#22D3EE'],
+  },
+  Business: {
+    id: 'Business',
+    label: 'Business',
+    iconName: 'Building2',
+    color: '#3B82F6',
+    bgColor: 'rgba(59, 130, 246, 0.12)',
+    gradient: ['#3B82F6', '#60A5FA'],
+  },
+  Bonus: {
+    id: 'Bonus',
+    label: 'Bonus',
+    iconName: 'Award',
+    color: '#F59E0B',
+    bgColor: 'rgba(245, 158, 11, 0.12)',
+    gradient: ['#F59E0B', '#FCD34D'],
+  },
+  Gift: {
+    id: 'Gift',
+    label: 'Gift',
+    iconName: 'Gift',
+    color: '#EC4899',
+    bgColor: 'rgba(236, 72, 153, 0.12)',
+    gradient: ['#EC4899', '#F472B6'],
+  },
+  Refund: {
+    id: 'Refund',
+    label: 'Refund',
+    iconName: 'RefreshCw',
+    color: '#14B8A6',
+    bgColor: 'rgba(20, 184, 166, 0.12)',
+    gradient: ['#14B8A6', '#2DD4BF'],
+  },
+  Cashback: {
+    id: 'Cashback',
+    label: 'Cashback',
+    iconName: 'Percent',
+    color: '#8B5CF6',
+    bgColor: 'rgba(139, 92, 246, 0.12)',
+    gradient: ['#8B5CF6', '#A78BFA'],
+  },
+  'Investment return': {
+    id: 'Investment return',
+    label: 'Investment Return',
+    iconName: 'TrendingUp',
+    color: '#10B981',
+    bgColor: 'rgba(16, 185, 129, 0.12)',
+    gradient: ['#10B981', '#34D399'],
+  },
+  Interest: {
+    id: 'Interest',
+    label: 'Interest',
+    iconName: 'Landmark',
+    color: '#6366F1',
+    bgColor: 'rgba(99, 102, 241, 0.12)',
+    gradient: ['#6366F1', '#818CF8'],
+  },
+  'Borrowed money': {
+    id: 'Borrowed money',
+    label: 'Borrowed Money / Loan',
+    iconName: 'HandCoins',
+    color: '#E11D48',
+    bgColor: 'rgba(225, 29, 72, 0.12)',
+    gradient: ['#E11D48', '#FB7185'],
+  },
+  'Opening Balance': {
+    id: 'Opening Balance',
+    label: 'Opening Balance',
+    iconName: 'PiggyBank',
+    color: '#0D9488',
+    bgColor: 'rgba(13, 148, 136, 0.12)',
+    gradient: ['#0D9488', '#2DD4BF'],
+  },
+  Other: {
+    id: 'Other',
+    label: 'Other Income',
+    iconName: 'CirclePlus',
+    color: '#64748B',
+    bgColor: 'rgba(100, 116, 139, 0.12)',
+    gradient: ['#64748B', '#94A3B8'],
+  },
+};
+
 export const PAYMENT_METHODS: { id: PaymentMethod; label: string; icon: string }[] = [
   { id: 'UPI', label: 'UPI / GPay / PhonePe', icon: 'Smartphone' },
   { id: 'Card', label: 'Credit / Debit Card', icon: 'CreditCard' },
@@ -113,3 +221,5 @@ export const PAYMENT_METHODS: { id: PaymentMethod; label: string; icon: string }
 ];
 
 export const ALL_CATEGORIES = Object.keys(CATEGORIES) as ExpenseCategory[];
+export const ALL_INCOME_SOURCES = Object.keys(INCOME_SOURCES) as IncomeSource[];
+

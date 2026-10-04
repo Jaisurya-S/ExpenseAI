@@ -172,16 +172,18 @@ export default function ScanModal() {
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}>
           <View style={styles.headerLeft}>
-            <View style={[styles.headerIconCircle, { backgroundColor: colors.primary + '20' }]}>
+            <View style={[styles.headerIconCircle, { backgroundColor: colors.primaryLight }]}>
               <Camera size={20} color={colors.primary} />
             </View>
             <View>
               <Text style={[styles.headerTitle, { color: colors.text }]}>Scan Bill & Receipt</Text>
-              <Text style={[styles.headerSub, { color: colors.textSecondary }]}>AI OCR & Auto-Categorization</Text>
+              <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
+                AI OCR & Auto-Categorization
+              </Text>
             </View>
           </View>
           <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
-            <X size={20} color={colors.textMuted} />
+            <X size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -193,31 +195,50 @@ export default function ScanModal() {
           {/* If no image selected yet */}
           {!imageUri ? (
             <View style={styles.pickerSection}>
-              <View style={[styles.scanIllustration, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+              <View
+                style={[
+                  styles.scanIllustration,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.cardBorder,
+                    shadowColor: colors.cardShadow,
+                  },
+                ]}
+              >
                 <View style={[styles.scanBeam, { backgroundColor: colors.primary }]} />
-                <FileText size={64} color={colors.primary} />
-                <Text style={[styles.illustrationTitle, { color: colors.text }]}>Upload Receipt or Invoice</Text>
+                <FileText size={56} color={colors.primary} style={{ marginTop: 8 }} />
+                <Text style={[styles.illustrationTitle, { color: colors.text }]}>
+                  Upload Receipt or Bill
+                </Text>
                 <Text style={[styles.illustrationSub, { color: colors.textSecondary }]}>
-                  Take a photo or pick from gallery. Our AI vision model extracts total amount, merchant, date, and categorizes automatically.
+                  Snap a photo or pick an invoice. AI Vision extracts the amount, store name, and
+                  category for one-tap recording.
                 </Text>
               </View>
 
               <View style={styles.buttonRow}>
                 <TouchableOpacity
-                  activeOpacity={0.8}
+                  activeOpacity={0.85}
                   onPress={takePhoto}
                   style={[styles.actionButton, styles.cameraButton, { backgroundColor: colors.primary }]}
                 >
-                  <Camera size={20} color="#FFFFFF" />
-                  <Text style={[styles.cameraButtonText, { color: '#FFFFFF' }]}>Take Photo</Text>
+                  <Camera size={18} color="#FFFFFF" />
+                  <Text style={styles.cameraButtonText}>Take Photo</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  activeOpacity={0.8}
+                  activeOpacity={0.85}
                   onPress={pickImage}
-                  style={[styles.actionButton, styles.galleryButton, { backgroundColor: colors.card, borderColor: colors.primary }]}
+                  style={[
+                    styles.actionButton,
+                    styles.galleryButton,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.primary,
+                    },
+                  ]}
                 >
-                  <ImageIcon size={20} color={colors.primary} />
+                  <ImageIcon size={18} color={colors.primary} />
                   <Text style={[styles.galleryButtonText, { color: colors.primary }]}>Gallery</Text>
                 </TouchableOpacity>
               </View>
@@ -228,16 +249,32 @@ export default function ScanModal() {
                   setImageUri('https://images.unsplash.com/photo-1554415707-9e4c01999908?w=500&q=80');
                   processImage('demo-receipt-uri');
                 }}
-                style={[styles.sampleTryBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '40' }]}
+                style={[
+                  styles.sampleTryBtn,
+                  {
+                    backgroundColor: colors.primaryLight,
+                    borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(29, 78, 216, 0.2)',
+                  },
+                ]}
               >
                 <Sparkles size={14} color={colors.primary} />
-                <Text style={[styles.sampleTryText, { color: colors.primary }]}>Try with Sample Supermarket Receipt</Text>
+                <Text style={[styles.sampleTryText, { color: colors.primary }]}>
+                  Try Sample Supermarket Receipt
+                </Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.resultSection}>
               {/* Image Preview & Scanning Overlay */}
-              <View style={[styles.imagePreviewContainer, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+              <View
+                style={[
+                  styles.imagePreviewContainer,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.cardBorder,
+                  },
+                ]}
+              >
                 <Image
                   source={{ uri: imageUri }}
                   style={styles.receiptImage}
@@ -245,8 +282,8 @@ export default function ScanModal() {
                 />
                 {isScanning && (
                   <View style={styles.scanningOverlay}>
-                    <ActivityIndicator size="large" color="#00F5D4" />
-                    <Text style={styles.scanningText}>AI Analyzing Receipt Items & Total...</Text>
+                    <ActivityIndicator size="large" color="#FFFFFF" />
+                    <Text style={styles.scanningText}>AI Vision Extracting Items & Amount...</Text>
                   </View>
                 )}
                 {!isScanning && (
@@ -261,21 +298,52 @@ export default function ScanModal() {
 
               {/* Parsed Results Form for confirmation */}
               {scanResult && !isScanning && (
-                <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-                  <View style={styles.aiBadgeBanner}>
-                    <Sparkles size={16} color="#00F5D4" />
+                <View
+                  style={[
+                    styles.formCard,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.cardBorder,
+                      shadowColor: colors.cardShadow,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.aiBadgeBanner,
+                      {
+                        backgroundColor: isDark
+                          ? 'rgba(16, 185, 129, 0.16)'
+                          : 'rgba(16, 185, 129, 0.1)',
+                        borderColor: isDark
+                          ? 'rgba(16, 185, 129, 0.3)'
+                          : 'rgba(16, 185, 129, 0.2)',
+                      },
+                    ]}
+                  >
+                    <Sparkles size={14} color="#10B981" />
                     <Text style={styles.aiBadgeBannerText}>
-                      AI Extracted ({Math.round(scanResult.confidence * 100)}% Confidence)
+                      AI EXTRACTED ({Math.round(scanResult.confidence * 100)}% Confidence)
                     </Text>
                   </View>
 
                   {/* Amount */}
-                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>TOTAL AMOUNT ({currency})</Text>
-                  <View style={[styles.inputRow, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                    TOTAL AMOUNT ({currency})
+                  </Text>
+                  <View
+                    style={[
+                      styles.inputRow,
+                      {
+                        backgroundColor: colors.inputBg,
+                        borderColor: colors.inputBorder,
+                      },
+                    ]}
+                  >
                     <Text style={[styles.currencyPrefix, { color: colors.primary }]}>{currency}</Text>
                     <TextInput
                       style={[styles.amountInput, { color: colors.text }]}
-                      keyboardType="numeric"
+                      keyboardType="decimal-pad"
                       value={amount}
                       onChangeText={setAmount}
                       placeholder="0.00"
@@ -284,9 +352,19 @@ export default function ScanModal() {
                   </View>
 
                   {/* Merchant */}
-                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>MERCHANT / STORE</Text>
-                  <View style={[styles.inputRow, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
-                    <Building2 size={18} color={colors.textMuted} style={{ marginRight: 8 }} />
+                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                    MERCHANT / STORE
+                  </Text>
+                  <View
+                    style={[
+                      styles.inputRow,
+                      {
+                        backgroundColor: colors.inputBg,
+                        borderColor: colors.inputBorder,
+                      },
+                    ]}
+                  >
+                    <Building2 size={16} color={colors.textSecondary} style={{ marginRight: 8 }} />
                     <TextInput
                       style={[styles.textInput, { color: colors.text }]}
                       value={merchant}
@@ -297,8 +375,18 @@ export default function ScanModal() {
                   </View>
 
                   {/* Description */}
-                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>DESCRIPTION / ITEMS</Text>
-                  <View style={[styles.inputRow, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                    DESCRIPTION / ITEMS
+                  </Text>
+                  <View
+                    style={[
+                      styles.inputRow,
+                      {
+                        backgroundColor: colors.inputBg,
+                        borderColor: colors.inputBorder,
+                      },
+                    ]}
+                  >
                     <TextInput
                       style={[styles.textInput, { color: colors.text }]}
                       value={description}
@@ -309,7 +397,7 @@ export default function ScanModal() {
                   </View>
 
                   {/* Category Picker */}
-                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>AUTO-ASSIGNED CATEGORY</Text>
+                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>CATEGORY</Text>
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
@@ -324,15 +412,19 @@ export default function ScanModal() {
                           onPress={() => setCategory(cat)}
                           style={[
                             styles.catChip,
-                            { backgroundColor: colors.inputBg, borderColor: colors.inputBorder },
-                            isSelected && { backgroundColor: meta.bgColor, borderColor: meta.color },
+                            {
+                              backgroundColor: isSelected ? meta.bgColor : colors.inputBg,
+                              borderColor: isSelected ? meta.color : colors.inputBorder,
+                            },
                           ]}
                         >
                           <Text
                             style={[
                               styles.catChipText,
-                              { color: colors.textSecondary },
-                              isSelected && { color: meta.color, fontWeight: '700' },
+                              {
+                                color: isSelected ? meta.color : colors.textSecondary,
+                                fontWeight: isSelected ? '700' : '500',
+                              },
                             ]}
                           >
                             {meta.label}
@@ -343,7 +435,9 @@ export default function ScanModal() {
                   </ScrollView>
 
                   {/* Payment Method */}
-                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>PAYMENT METHOD</Text>
+                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                    PAYMENT METHOD
+                  </Text>
                   <View style={styles.paymentMethodRow}>
                     {PAYMENT_METHODS.map((pm) => {
                       const isSelected = paymentMethod === pm.id;
@@ -353,18 +447,22 @@ export default function ScanModal() {
                           onPress={() => setPaymentMethod(pm.id)}
                           style={[
                             styles.pmChip,
-                            { backgroundColor: colors.inputBg, borderColor: colors.inputBorder },
-                            isSelected && { backgroundColor: colors.primary + '18', borderColor: colors.primary },
+                            {
+                              backgroundColor: isSelected ? colors.primaryLight : colors.inputBg,
+                              borderColor: isSelected ? colors.primary : colors.inputBorder,
+                            },
                           ]}
                         >
                           <Text
                             style={[
                               styles.pmChipText,
-                              { color: colors.textSecondary },
-                              isSelected && { color: colors.primary, fontWeight: '700' },
+                              {
+                                color: isSelected ? colors.primary : colors.textSecondary,
+                                fontWeight: isSelected ? '700' : '500',
+                              },
                             ]}
                           >
-                            {pm.id}
+                            {pm.label}
                           </Text>
                         </TouchableOpacity>
                       );
@@ -373,7 +471,7 @@ export default function ScanModal() {
 
                   {/* Confirm & Save Button */}
                   <TouchableOpacity
-                    activeOpacity={0.8}
+                    activeOpacity={0.85}
                     onPress={handleConfirmSave}
                     disabled={isSaving}
                     style={[styles.confirmSaveBtn, { backgroundColor: colors.primary }]}
@@ -382,8 +480,8 @@ export default function ScanModal() {
                       <ActivityIndicator color="#FFFFFF" />
                     ) : (
                       <>
-                        <Check size={20} color="#FFFFFF" />
-                        <Text style={[styles.confirmSaveBtnText, { color: '#FFFFFF' }]}>Confirm & Save Expense</Text>
+                        <Check size={18} color="#FFFFFF" />
+                        <Text style={styles.confirmSaveBtnText}>Save Scanned Expense</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -400,11 +498,9 @@ export default function ScanModal() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0D0F15',
   },
   container: {
     flex: 1,
-    backgroundColor: '#0D0F15',
   },
   header: {
     flexDirection: 'row',
@@ -412,32 +508,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: Platform.OS === 'android' ? 24 : 12,
-    paddingBottom: 16,
+    paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#1F2432',
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   headerIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(0, 187, 249, 0.15)',
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
   },
   headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
+    letterSpacing: -0.3,
   },
   headerSub: {
-    color: '#8D99AE',
     fontSize: 11,
     fontWeight: '500',
+    marginTop: 1,
   },
   closeBtn: {
     padding: 6,
@@ -451,19 +545,21 @@ const styles = StyleSheet.create({
   },
   pickerSection: {
     alignItems: 'center',
-    paddingTop: 20,
+    paddingTop: 10,
   },
   scanIllustration: {
-    backgroundColor: '#161922',
-    borderRadius: 24,
-    padding: 28,
+    borderRadius: 22,
+    padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#262D3D',
     width: '100%',
-    marginBottom: 24,
+    marginBottom: 18,
     position: 'relative',
     overflow: 'hidden',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
   },
   scanBeam: {
     position: 'absolute',
@@ -471,81 +567,68 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 2,
-    backgroundColor: '#00BBF9',
   },
   illustrationTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: 12,
+    marginBottom: 6,
   },
   illustrationSub: {
-    color: '#8D99AE',
-    fontSize: 13,
+    fontSize: 12,
     textAlign: 'center',
     lineHeight: 18,
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
     width: '100%',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   actionButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
-    paddingVertical: 14,
+    borderRadius: 14,
+    paddingVertical: 13,
     gap: 8,
   },
-  cameraButton: {
-    backgroundColor: '#00BBF9',
-  },
+  cameraButton: {},
   cameraButtonText: {
-    color: '#0D1117',
-    fontSize: 15,
-    fontWeight: '800',
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
   galleryButton: {
-    backgroundColor: '#161922',
     borderWidth: 1,
-    borderColor: '#00BBF9',
   },
   galleryButtonText: {
-    color: '#00BBF9',
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '700',
   },
   sampleTryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 245, 212, 0.1)',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(0, 245, 212, 0.25)',
     gap: 6,
   },
   sampleTryText: {
-    color: '#00F5D4',
     fontSize: 12,
     fontWeight: '700',
   },
   resultSection: {
-    gap: 16,
+    gap: 14,
   },
   imagePreviewContainer: {
-    height: 200,
-    borderRadius: 20,
+    height: 190,
+    borderRadius: 18,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: '#161922',
     borderWidth: 1,
-    borderColor: '#262D3D',
   },
   receiptImage: {
     width: '100%',
@@ -557,23 +640,23 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(13, 15, 21, 0.85)',
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   scanningText: {
-    color: '#00F5D4',
-    fontSize: 14,
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: '700',
-    marginTop: 12,
+    marginTop: 10,
   },
   retakeBtn: {
     position: 'absolute',
-    bottom: 12,
-    right: 12,
-    backgroundColor: 'rgba(13, 15, 21, 0.8)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    bottom: 10,
+    right: 10,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 8,
   },
   retakeText: {
@@ -582,61 +665,58 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   formCard: {
-    backgroundColor: '#161922',
-    borderRadius: 24,
-    padding: 20,
+    borderRadius: 22,
+    padding: 18,
     borderWidth: 1,
-    borderColor: '#262D3D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
   aiBadgeBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 245, 212, 0.12)',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
-    marginBottom: 16,
+    borderWidth: 1,
+    marginBottom: 12,
     gap: 6,
   },
   aiBadgeBannerText: {
-    color: '#00F5D4',
-    fontSize: 12,
+    color: '#10B981',
+    fontSize: 11,
     fontWeight: '800',
+    letterSpacing: 0.5,
   },
   inputLabel: {
-    color: '#8D99AE',
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1,
     marginBottom: 6,
-    marginTop: 12,
+    marginTop: 10,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#222634',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 48,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
     borderWidth: 1,
-    borderColor: '#2D3548',
   },
   currencyPrefix: {
-    color: '#00F5D4',
     fontSize: 18,
     fontWeight: '800',
     marginRight: 6,
   },
   amountInput: {
     flex: 1,
-    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '800',
   },
   textInput: {
     flex: 1,
-    color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   categoryPickerRow: {
@@ -646,15 +726,11 @@ const styles = StyleSheet.create({
   catChip: {
     paddingHorizontal: 12,
     paddingVertical: 7,
-    borderRadius: 12,
-    backgroundColor: '#222634',
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#2D3548',
   },
   catChipText: {
-    color: '#8D99AE',
     fontSize: 12,
-    fontWeight: '600',
   },
   paymentMethodRow: {
     flexDirection: 'row',
@@ -666,36 +742,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 10,
-    backgroundColor: '#222634',
     borderWidth: 1,
-    borderColor: '#2D3548',
-  },
-  pmChipActive: {
-    backgroundColor: 'rgba(0, 187, 249, 0.15)',
-    borderColor: '#00BBF9',
   },
   pmChipText: {
-    color: '#8D99AE',
     fontSize: 12,
-    fontWeight: '600',
-  },
-  pmChipTextActive: {
-    color: '#00BBF9',
-    fontWeight: '700',
   },
   confirmSaveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#00F5D4',
-    borderRadius: 16,
+    borderRadius: 14,
     paddingVertical: 14,
-    marginTop: 24,
+    marginTop: 20,
     gap: 8,
   },
   confirmSaveBtnText: {
-    color: '#0D1117',
-    fontSize: 15,
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '800',
   },
 });

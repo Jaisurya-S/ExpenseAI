@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -15,134 +15,114 @@ import { useRouter } from 'expo-router';
 import { useExpenseStore } from '../../store/useExpenseStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useAppTheme } from '../../hooks/use-theme';
-import { autoCategorize, categorizeLocally } from '../../services/aiService';
-import { ALL_CATEGORIES, CATEGORIES, PAYMENT_METHODS } from '../../constants/categories';
-import { ExpenseCategory, PaymentMethod } from '../../types';
+import { ALL_INCOME_SOURCES, INCOME_SOURCES, PAYMENT_METHODS } from '../../constants/categories';
+import { IncomeSource, PaymentMethod } from '../../types';
 import DatePickerModal from '../../components/common/date-picker-modal';
 import {
   Plus,
   X,
   Check,
-  Sparkles,
   Building2,
   Calendar,
   FileText,
+  Trash2,
+  ArrowDownLeft,
   ChevronDown,
 } from 'lucide-react-native';
 
-export default function AddExpenseModal() {
+export default function AddIncomeModal() {
   const router = useRouter();
   const { profile, user } = useAuthStore();
   const { colors, isDark } = useAppTheme();
   const currency = profile.currency || '₹';
-  const { addExpense, updateExpense, draftExpense, setDraftExpense } = useExpenseStore();
+  const { addIncome, updateIncome, deleteIncome, draftIncome, setDraftIncome } = useExpenseStore();
 
-  const isEditing = Boolean(draftExpense?.id);
+  const isEditing = Boolean(draftIncome?.id);
 
-  const [amount, setAmount] = useState(draftExpense?.amount ? draftExpense.amount.toString() : '');
-  const [description, setDescription] = useState(draftExpense?.description || '');
-  const [merchant, setMerchant] = useState(draftExpense?.merchant || '');
-  const [category, setCategory] = useState<ExpenseCategory>(draftExpense?.category || 'Food');
-  const [date, setDate] = useState(draftExpense?.date || new Date().toISOString().split('T')[0]);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(draftExpense?.paymentMethod || 'UPI');
-  const [isAiPredicting, setIsAiPredicting] = useState(false);
-  const [aiConfidence, setAiConfidence] = useState<number | null>(draftExpense?.aiConfidence || null);
+  const [amount, setAmount] = useState(draftIncome?.amount ? draftIncome.amount.toString() : '');
+  const [description, setDescription] = useState(draftIncome?.description || '');
+  const [payer, setPayer] = useState(draftIncome?.payer || '');
+  const [source, setSource] = useState<IncomeSource>(draftIncome?.source || 'Salary');
+  const [date, setDate] = useState(draftIncome?.date || new Date().toISOString().split('T')[0]);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(draftIncome?.paymentMethod || 'UPI');
   const [isSaving, setIsSaving] = useState(false);
   const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
 
-  // Real-Time Intelligent Categorization (only for new expenses)
-  useEffect(() => {
-    if (isEditing) return;
-    if (!description && !merchant) {
-      setAiConfidence(null);
-      return;
-    }
-
-    // 1. Instant local categorization
-    const local = categorizeLocally(description, merchant);
-    if (local.confidence > 0.8) {
-      setCategory(local.category);
-      setAiConfidence(local.confidence);
-    }
-
-    // 2. Debounced AI fallback if local confidence is low
-    const timer = setTimeout(async () => {
-      if (description.length > 3) {
-        setIsAiPredicting(true);
-        const res = await autoCategorize(description, merchant);
-        setCategory(res.category);
-        setAiConfidence(res.confidence);
-        setIsAiPredicting(false);
-      }
-    }, 450);
-
-    return () => clearTimeout(timer);
-  }, [description, merchant, isEditing]);
-
   const handleClose = () => {
-    setDraftExpense(null);
+    setDraftIncome(null);
     router.back();
   };
 
-  const handleSaveExpense = async () => {
+  const handleSaveIncome = async () => {
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
       if (Platform.OS === 'web') {
-        window.alert('Please enter a valid expense amount.');
+        window.alert('Please enter a valid amount.');
       } else {
-        Alert.alert('Invalid Amount', 'Please enter a valid expense amount.');
+        Alert.alert('Invalid Amount', 'Please enter a valid income amount.');
       }
       return;
     }
 
-    if (!description.trim()) {
-      if (Platform.OS === 'web') {
-        window.alert('Please add a short note or description.');
-      } else {
-        Alert.alert('Missing Description', 'Please add a short note or description.');
-      }
-      return;
-    }
+    const trimmedDesc = description.trim() || `${source} Income`;
 
     setIsSaving(true);
     try {
       const userId = user?.uid || profile.uid || 'demo-user';
 
-      if (isEditing && draftExpense?.id) {
-        await updateExpense(draftExpense.id, {
+      if (isEditing && draftIncome?.id) {
+        await updateIncome(draftIncome.id, {
           amount: amountNum,
-          category,
-          description: description.trim(),
-          merchant: merchant.trim() || undefined,
+          source,
+          description: trimmedDesc,
+          payer: payer.trim() || undefined,
           date,
           paymentMethod,
         });
       } else {
-        await addExpense({
+        await addIncome({
           userId,
           amount: amountNum,
-          category,
-          description: description.trim(),
-          merchant: merchant.trim() || undefined,
+          source,
+          description: trimmedDesc,
+          payer: payer.trim() || undefined,
           date,
           paymentMethod,
-          inputMethod: 'manual',
-          aiConfidence: aiConfidence || 0.9,
-          aiSuggestedCategory: category,
-          isAiGenerated: aiConfidence !== null && aiConfidence >= 0.8,
+          isOpeningBalance: source === 'Opening Balance',
         });
       }
 
-      setDraftExpense(null);
+      setDraftIncome(null);
       router.back();
     } catch (err) {
       if (Platform.OS === 'web') {
-        window.alert('Failed to save expense. Please try again.');
+        window.alert('Failed to save income. Please try again.');
       } else {
-        Alert.alert('Error', 'Failed to save expense. Please try again.');
+        Alert.alert('Error', 'Failed to save income record.');
       }
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!draftIncome?.id) return;
+
+    const performDelete = async () => {
+      await deleteIncome(draftIncome.id!);
+      setDraftIncome(null);
+      router.back();
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to delete this income record?')) {
+        await performDelete();
+      }
+    } else {
+      Alert.alert('Delete Income', 'Are you sure you want to delete this income record?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: performDelete },
+      ]);
     }
   };
 
@@ -164,18 +144,18 @@ export default function AddExpenseModal() {
               style={[
                 styles.headerIconCircle,
                 {
-                  backgroundColor: colors.primaryLight,
+                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
                 },
               ]}
             >
-              <Plus size={20} color={colors.primary} />
+              <ArrowDownLeft size={20} color="#10B981" />
             </View>
             <View>
               <Text style={[styles.headerTitle, { color: colors.text }]}>
-                {isEditing ? 'Edit Expense' : 'Add Expense'}
+                {isEditing ? 'Edit Income' : 'Add Money / Income'}
               </Text>
               <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
-                {isEditing ? 'Update transaction details' : 'With Real-Time Auto-Categorization'}
+                Credit to available balance & budget
               </Text>
             </View>
           </View>
@@ -200,9 +180,9 @@ export default function AddExpenseModal() {
               },
             ]}
           >
-            <Text style={[styles.amountLabel, { color: colors.textSecondary }]}>AMOUNT</Text>
+            <Text style={[styles.amountLabel, { color: '#10B981' }]}>AMOUNT RECEIVED (+)</Text>
             <View style={styles.amountInputRow}>
-              <Text style={[styles.amountCurrency, { color: colors.primary }]}>{currency}</Text>
+              <Text style={[styles.amountCurrency, { color: '#10B981' }]}>{currency}</Text>
               <TextInput
                 style={[styles.amountInput, { color: colors.text }]}
                 keyboardType="decimal-pad"
@@ -215,7 +195,7 @@ export default function AddExpenseModal() {
             </View>
           </View>
 
-          {/* Description & Real-Time AI Suggestion Banner */}
+          {/* Income Source Selector */}
           <View
             style={[
               styles.fieldCard,
@@ -226,105 +206,21 @@ export default function AddExpenseModal() {
               },
             ]}
           >
-            <View style={styles.fieldLabelRow}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>DESCRIPTION</Text>
-              {aiConfidence !== null && (
-                <View
-                  style={[
-                    styles.aiSuggestedPill,
-                    {
-                      backgroundColor: colors.primaryLight,
-                    },
-                  ]}
-                >
-                  <Sparkles size={11} color={colors.primary} />
-                  <Text style={[styles.aiSuggestedPillText, { color: colors.primary }]}>
-                    AI Suggested: {category} ({Math.round(aiConfidence * 100)}%)
-                  </Text>
-                </View>
-              )}
-            </View>
-            <View
-              style={[
-                styles.inputRow,
-                {
-                  backgroundColor: colors.inputBg,
-                  borderColor: colors.inputBorder,
-                },
-              ]}
-            >
-              <FileText size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
-              <TextInput
-                style={[styles.textInput, { color: colors.text }]}
-                placeholder="e.g. Starbucks cappuccino, Uber ride, Grocery..."
-                placeholderTextColor={colors.textMuted}
-                value={description}
-                onChangeText={setDescription}
-              />
-              {isAiPredicting && <ActivityIndicator size="small" color={colors.primary} />}
-            </View>
-          </View>
-
-          {/* Merchant / Store */}
-          <View
-            style={[
-              styles.fieldCard,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.cardBorder,
-                shadowColor: colors.cardShadow,
-              },
-            ]}
-          >
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-              MERCHANT / VENDOR (OPTIONAL)
-            </Text>
-            <View
-              style={[
-                styles.inputRow,
-                {
-                  backgroundColor: colors.inputBg,
-                  borderColor: colors.inputBorder,
-                },
-              ]}
-            >
-              <Building2 size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
-              <TextInput
-                style={[styles.textInput, { color: colors.text }]}
-                placeholder="e.g. Amazon, Shell Fuel, Walmart"
-                placeholderTextColor={colors.textMuted}
-                value={merchant}
-                onChangeText={setMerchant}
-              />
-            </View>
-          </View>
-
-          {/* Category Selector */}
-          <View
-            style={[
-              styles.fieldCard,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.cardBorder,
-                shadowColor: colors.cardShadow,
-              },
-            ]}
-          >
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>EXPENSE CATEGORY</Text>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>INCOME SOURCE</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.categoryPickerRow}
+              contentContainerStyle={styles.sourcePickerRow}
             >
-              {ALL_CATEGORIES.map((cat) => {
-                const meta = CATEGORIES[cat];
-                const isSelected = category === cat;
+              {ALL_INCOME_SOURCES.map((src) => {
+                const meta = INCOME_SOURCES[src];
+                const isSelected = source === src;
                 return (
                   <TouchableOpacity
-                    key={cat}
-                    onPress={() => setCategory(cat)}
+                    key={src}
+                    onPress={() => setSource(src)}
                     style={[
-                      styles.catChip,
+                      styles.sourceChip,
                       {
                         backgroundColor: isSelected ? meta.bgColor : colors.inputBg,
                         borderColor: isSelected ? meta.color : colors.inputBorder,
@@ -333,7 +229,7 @@ export default function AddExpenseModal() {
                   >
                     <Text
                       style={[
-                        styles.catChipText,
+                        styles.sourceChipText,
                         {
                           color: isSelected ? meta.color : colors.textSecondary,
                           fontWeight: isSelected ? '700' : '500',
@@ -348,6 +244,72 @@ export default function AddExpenseModal() {
             </ScrollView>
           </View>
 
+          {/* Description / Note */}
+          <View
+            style={[
+              styles.fieldCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.cardBorder,
+                shadowColor: colors.cardShadow,
+              },
+            ]}
+          >
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>DESCRIPTION / NOTE</Text>
+            <View
+              style={[
+                styles.inputRow,
+                {
+                  backgroundColor: colors.inputBg,
+                  borderColor: colors.inputBorder,
+                },
+              ]}
+            >
+              <FileText size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
+              <TextInput
+                style={[styles.textInput, { color: colors.text }]}
+                placeholder="e.g. October monthly salary, Web design project..."
+                placeholderTextColor={colors.textMuted}
+                value={description}
+                onChangeText={setDescription}
+              />
+            </View>
+          </View>
+
+          {/* Payer / Client / Company */}
+          <View
+            style={[
+              styles.fieldCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.cardBorder,
+                shadowColor: colors.cardShadow,
+              },
+            ]}
+          >
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+              PAYER / CLIENT / COMPANY (OPTIONAL)
+            </Text>
+            <View
+              style={[
+                styles.inputRow,
+                {
+                  backgroundColor: colors.inputBg,
+                  borderColor: colors.inputBorder,
+                },
+              ]}
+            >
+              <Building2 size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
+              <TextInput
+                style={[styles.textInput, { color: colors.text }]}
+                placeholder="e.g. Google LLC, Acme Corp, Upwork..."
+                placeholderTextColor={colors.textMuted}
+                value={payer}
+                onChangeText={setPayer}
+              />
+            </View>
+          </View>
+
           {/* Date Selector */}
           <View
             style={[
@@ -359,15 +321,15 @@ export default function AddExpenseModal() {
               },
             ]}
           >
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>TRANSACTION DATE</Text>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>CREDIT DATE</Text>
             <View style={styles.dateSelectorRow}>
               <TouchableOpacity
                 onPress={() => setDateOffset(0)}
                 style={[
                   styles.dateChip,
                   {
-                    backgroundColor: isToday ? colors.primaryLight : colors.inputBg,
-                    borderColor: isToday ? colors.primary : colors.inputBorder,
+                    backgroundColor: isToday ? 'rgba(16, 185, 129, 0.15)' : colors.inputBg,
+                    borderColor: isToday ? '#10B981' : colors.inputBorder,
                   },
                 ]}
               >
@@ -375,7 +337,7 @@ export default function AddExpenseModal() {
                   style={[
                     styles.dateChipText,
                     {
-                      color: isToday ? colors.primary : colors.textSecondary,
+                      color: isToday ? '#10B981' : colors.textSecondary,
                       fontWeight: isToday ? '700' : '500',
                     },
                   ]}
@@ -389,8 +351,8 @@ export default function AddExpenseModal() {
                 style={[
                   styles.dateChip,
                   {
-                    backgroundColor: isYesterday ? colors.primaryLight : colors.inputBg,
-                    borderColor: isYesterday ? colors.primary : colors.inputBorder,
+                    backgroundColor: isYesterday ? 'rgba(16, 185, 129, 0.15)' : colors.inputBg,
+                    borderColor: isYesterday ? '#10B981' : colors.inputBorder,
                   },
                 ]}
               >
@@ -398,7 +360,7 @@ export default function AddExpenseModal() {
                   style={[
                     styles.dateChipText,
                     {
-                      color: isYesterday ? colors.primary : colors.textSecondary,
+                      color: isYesterday ? '#10B981' : colors.textSecondary,
                       fontWeight: isYesterday ? '700' : '500',
                     },
                   ]}
@@ -418,7 +380,7 @@ export default function AddExpenseModal() {
                   },
                 ]}
               >
-                <Calendar size={14} color={colors.primary} style={{ marginRight: 6 }} />
+                <Calendar size={14} color="#10B981" style={{ marginRight: 6 }} />
                 <Text style={[styles.dateDisplayText, { color: colors.text }]}>{date}</Text>
                 <ChevronDown size={14} color={colors.textSecondary} style={{ marginLeft: 4 }} />
               </TouchableOpacity>
@@ -436,7 +398,7 @@ export default function AddExpenseModal() {
               },
             ]}
           >
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>PAYMENT METHOD</Text>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>DEPOSIT ACCOUNT / METHOD</Text>
             <View style={styles.paymentMethodRow}>
               {PAYMENT_METHODS.map((pm) => {
                 const isSelected = paymentMethod === pm.id;
@@ -447,8 +409,8 @@ export default function AddExpenseModal() {
                     style={[
                       styles.pmChip,
                       {
-                        backgroundColor: isSelected ? colors.primaryLight : colors.inputBg,
-                        borderColor: isSelected ? colors.primary : colors.inputBorder,
+                        backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.15)' : colors.inputBg,
+                        borderColor: isSelected ? '#10B981' : colors.inputBorder,
                       },
                     ]}
                   >
@@ -456,7 +418,7 @@ export default function AddExpenseModal() {
                       style={[
                         styles.pmChipText,
                         {
-                          color: isSelected ? colors.primary : colors.textSecondary,
+                          color: isSelected ? '#10B981' : colors.textSecondary,
                           fontWeight: isSelected ? '700' : '500',
                         },
                       ]}
@@ -472,21 +434,39 @@ export default function AddExpenseModal() {
           {/* Save Button */}
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={handleSaveExpense}
+            onPress={handleSaveIncome}
             disabled={isSaving}
-            style={[styles.saveButton, { backgroundColor: colors.primary }]}
+            style={[styles.saveButton, { backgroundColor: '#10B981' }]}
           >
             {isSaving ? (
-              <ActivityIndicator color={colors.primaryText} />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
               <>
-                <Check size={20} color={colors.primaryText} />
-                <Text style={[styles.saveButtonText, { color: colors.primaryText }]}>
-                  {isEditing ? 'Update Expense' : 'Save Expense'}
+                <Check size={20} color="#FFFFFF" />
+                <Text style={[styles.saveButtonText, { color: '#FFFFFF' }]}>
+                  {isEditing ? 'Update Income' : 'Add to Available Balance'}
                 </Text>
               </>
             )}
           </TouchableOpacity>
+
+          {/* Delete Option if editing */}
+          {isEditing && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={handleDelete}
+              style={[
+                styles.deleteButton,
+                {
+                  backgroundColor: colors.dangerBg,
+                  borderColor: colors.dangerBorder,
+                },
+              ]}
+            >
+              <Trash2 size={18} color={colors.danger} />
+              <Text style={[styles.deleteButtonText, { color: colors.danger }]}>Delete Income</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
 
         <DatePickerModal
@@ -494,7 +474,7 @@ export default function AddExpenseModal() {
           onClose={() => setIsDatePickerVisible(false)}
           selectedDate={date}
           onSelectDate={(newDate) => setDate(newDate)}
-          title="Transaction Date"
+          title="Income Date"
         />
       </View>
     </SafeAreaView>
@@ -589,29 +569,24 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  fieldLabelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
   inputLabel: {
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1,
     marginBottom: 8,
   },
-  aiSuggestedPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    gap: 4,
+  sourcePickerRow: {
+    gap: 8,
+    paddingVertical: 4,
   },
-  aiSuggestedPillText: {
-    fontSize: 10,
-    fontWeight: '700',
+  sourceChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  sourceChipText: {
+    fontSize: 12,
   },
   inputRow: {
     flexDirection: 'row',
@@ -625,19 +600,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '600',
-  },
-  categoryPickerRow: {
-    gap: 8,
-    paddingVertical: 4,
-  },
-  catChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  catChipText: {
-    fontSize: 12,
   },
   dateSelectorRow: {
     flexDirection: 'row',
@@ -696,5 +658,19 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 16,
     fontWeight: '800',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    paddingVertical: 14,
+    marginTop: 8,
+    gap: 8,
+    borderWidth: 1,
+  },
+  deleteButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

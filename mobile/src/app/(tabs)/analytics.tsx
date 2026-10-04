@@ -13,13 +13,23 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useAppTheme } from '../../hooks/use-theme';
 import { ExpensePieChart } from '../../components/analytics/ExpensePieChart';
 import { SpendingBarChart } from '../../components/analytics/SpendingBarChart';
-import { ExpenseCategory } from '../../types';
-import { Sparkles, TrendingUp, DollarSign, CreditCard, Award } from 'lucide-react-native';
+import { ExpenseCategory, IncomeSource } from '../../types';
+import { INCOME_SOURCES } from '../../constants/categories';
+import {
+  Sparkles,
+  TrendingUp,
+  DollarSign,
+  CreditCard,
+  Award,
+  ArrowDownLeft,
+  ArrowUpRight,
+  PiggyBank,
+} from 'lucide-react-native';
 
 export default function AnalyticsScreen() {
   const { profile } = useAuthStore();
   const currency = profile.currency || '₹';
-  const { expenses } = useExpenseStore();
+  const { expenses, incomes } = useExpenseStore();
   const { colors, isDark } = useAppTheme();
   const [period, setPeriod] = useState<'month' | 'all'>('month');
 
@@ -32,16 +42,35 @@ export default function AnalyticsScreen() {
     return expenses;
   }, [expenses, period]);
 
-  const totalSpent = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const filteredIncomes = useMemo(() => {
+    if (period === 'month') {
+      return incomes.filter((i) => i.date?.startsWith(currentMonthKey));
+    }
+    return incomes;
+  }, [incomes, period]);
+
+  const totalSpent = filteredExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const totalIncome = filteredIncomes.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+  const netSavings = totalIncome - totalSpent;
+  const savingsRate = totalIncome > 0 ? Math.round((netSavings / totalIncome) * 100) : 0;
 
   // Category breakdown
   const categoryTotals = useMemo(() => {
     const totals: Partial<Record<ExpenseCategory, number>> = {};
     filteredExpenses.forEach((e) => {
-      totals[e.category] = (totals[e.category] || 0) + (e.amount || 0);
+      totals[e.category] = (totals[e.category] || 0) + (Number(e.amount) || 0);
     });
     return totals;
   }, [filteredExpenses]);
+
+  // Income source breakdown
+  const incomeSourceTotals = useMemo(() => {
+    const totals: Partial<Record<IncomeSource, number>> = {};
+    filteredIncomes.forEach((i) => {
+      totals[i.source] = (totals[i.source] || 0) + (Number(i.amount) || 0);
+    });
+    return totals;
+  }, [filteredIncomes]);
 
   // Top category
   const topCategory = useMemo(() => {
@@ -70,7 +99,7 @@ export default function AnalyticsScreen() {
 
       const dayTotal = expenses
         .filter((e) => e.date === dateStr)
-        .reduce((sum, e) => sum + (e.amount || 0), 0);
+        .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
       result.push({
         label: dayLabel,
@@ -86,7 +115,7 @@ export default function AnalyticsScreen() {
     filteredExpenses.forEach((e) => {
       const m = e.merchant || e.description || 'General';
       if (!counts[m]) counts[m] = { amount: 0, count: 0 };
-      counts[m].amount += e.amount || 0;
+      counts[m].amount += Number(e.amount) || 0;
       counts[m].count += 1;
     });
 
@@ -110,7 +139,7 @@ export default function AnalyticsScreen() {
           <View>
             <Text style={[styles.headerTitle, { color: colors.text }]}>Financial Analytics</Text>
             <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
-              AI-driven spend breakdown & trends
+              Income, expenses, savings rate & AI cashflow analysis
             </Text>
           </View>
 
@@ -162,6 +191,90 @@ export default function AnalyticsScreen() {
                 All Time
               </Text>
             </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Income vs Expense Comparative Card */}
+        <View
+          style={[
+            styles.comparisonCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.cardBorder,
+              shadowColor: colors.cardShadow,
+            },
+          ]}
+        >
+          <View style={styles.compTopRow}>
+            <View>
+              <Text style={[styles.compLabel, { color: colors.textSecondary }]}>
+                CASHFLOW & SAVINGS RATE
+              </Text>
+              <Text
+                style={[
+                  styles.compNetValue,
+                  { color: netSavings >= 0 ? '#10B981' : colors.danger },
+                ]}
+              >
+                {netSavings >= 0 ? '+' : ''}
+                {currency}
+                {netSavings.toLocaleString()}
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.savingsRateBadge,
+                {
+                  backgroundColor:
+                    savingsRate >= 20
+                      ? 'rgba(16, 185, 129, 0.15)'
+                      : savingsRate >= 0
+                      ? 'rgba(245, 158, 11, 0.15)'
+                      : colors.dangerBg,
+                  borderColor:
+                    savingsRate >= 20
+                      ? '#10B981'
+                      : savingsRate >= 0
+                      ? '#F59E0B'
+                      : colors.dangerBorder,
+                },
+              ]}
+            >
+              <PiggyBank size={14} color={savingsRate >= 0 ? '#10B981' : colors.danger} />
+              <Text
+                style={[
+                  styles.savingsRateText,
+                  { color: savingsRate >= 0 ? '#10B981' : colors.danger },
+                ]}
+              >
+                {savingsRate}% Saved
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.compColumnsRow}>
+            <View style={styles.compCol}>
+              <View style={styles.compColHeader}>
+                <ArrowDownLeft size={14} color="#10B981" />
+                <Text style={[styles.compColLabel, { color: colors.textSecondary }]}>Total Income</Text>
+              </View>
+              <Text style={[styles.compColVal, { color: '#10B981' }]}>
+                +{currency}{totalIncome.toLocaleString()}
+              </Text>
+            </View>
+
+            <View style={[styles.compDivider, { backgroundColor: colors.cardBorder }]} />
+
+            <View style={styles.compCol}>
+              <View style={styles.compColHeader}>
+                <ArrowUpRight size={14} color={colors.danger} />
+                <Text style={[styles.compColLabel, { color: colors.textSecondary }]}>Total Spent</Text>
+              </View>
+              <Text style={[styles.compColVal, { color: colors.danger }]}>
+                -{currency}{totalSpent.toLocaleString()}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -264,7 +377,9 @@ export default function AnalyticsScreen() {
               <CreditCard size={18} color={colors.accent} />
             </View>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Transactions</Text>
-            <Text style={[styles.statNumber, { color: colors.text }]}>{filteredExpenses.length}</Text>
+            <Text style={[styles.statNumber, { color: colors.text }]}>
+              {filteredExpenses.length + filteredIncomes.length}
+            </Text>
           </View>
         </View>
 
@@ -279,6 +394,58 @@ export default function AnalyticsScreen() {
           data={dailyBarData}
           title="LAST 7 DAYS SPENDING FLOW"
         />
+
+        {/* Income Sources Leaderboard if any */}
+        {Object.keys(incomeSourceTotals).length > 0 && (
+          <View
+            style={[
+              styles.merchantsCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.cardBorder,
+                shadowColor: colors.cardShadow,
+              },
+            ]}
+          >
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+              INCOME BREAKDOWN BY SOURCE
+            </Text>
+            {Object.entries(incomeSourceTotals).map(([src, val], idx) => {
+              const meta = INCOME_SOURCES[src as keyof typeof INCOME_SOURCES] || INCOME_SOURCES.Other;
+              return (
+                <View
+                  key={src}
+                  style={[
+                    styles.merchantRow,
+                    { borderBottomColor: colors.cardBorder },
+                  ]}
+                >
+                  <View style={styles.merchantLeft}>
+                    <View
+                      style={[
+                        styles.rankBadge,
+                        { backgroundColor: meta.bgColor },
+                      ]}
+                    >
+                      <Text style={[styles.rankText, { color: meta.color }]}>
+                        #{idx + 1}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={[styles.merchantName, { color: colors.text }]} numberOfLines={1}>
+                        {meta.label}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.merchantAmount, { color: '#10B981' }]}>
+                    +{currency}
+                    {val?.toLocaleString()}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
 
         {/* Top Merchants Leaderboard */}
         <View
@@ -353,12 +520,12 @@ export default function AnalyticsScreen() {
             </Text>
           </View>
           <View style={styles.scoreRow}>
-            <Text style={[styles.scoreNumber, { color: colors.text }]}>84</Text>
-            <Text style={[styles.scoreMax, { color: colors.primary }]}>/100 (Excellent)</Text>
+            <Text style={[styles.scoreNumber, { color: colors.text }]}>88</Text>
+            <Text style={[styles.scoreMax, { color: colors.primary }]}>/100 (Strong Position)</Text>
           </View>
           <Text style={[styles.scoreDesc, { color: colors.textSecondary }]}>
-            Your discretionary spending is well-balanced. Keeping grocery expenditures under 25% of
-            your total budget helped boost your savings rate this month.
+            Your cash flow is healthy with positive net balance. Maintaining disciplined budget limits
+            across top categories provides strong runway and predictability.
           </Text>
         </View>
       </ScrollView>
@@ -388,7 +555,7 @@ const styles = StyleSheet.create({
   },
   headerSub: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
     marginTop: 2,
     marginBottom: 12,
   },
@@ -406,6 +573,74 @@ const styles = StyleSheet.create({
   },
   toggleText: {
     fontSize: 12,
+  },
+  comparisonCard: {
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 18,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  compTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  compLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  compNetValue: {
+    fontSize: 26,
+    fontWeight: '900',
+  },
+  savingsRateBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 4,
+  },
+  savingsRateText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  compColumnsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(150, 150, 150, 0.1)',
+  },
+  compCol: {
+    flex: 1,
+  },
+  compColHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
+  compColLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  compColVal: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  compDivider: {
+    width: 1,
+    height: 32,
+    marginHorizontal: 12,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -533,3 +768,4 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
+

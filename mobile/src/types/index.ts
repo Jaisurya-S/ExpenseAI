@@ -10,6 +10,20 @@ export type ExpenseCategory =
   | 'Investment'
   | 'Other';
 
+export type IncomeSource =
+  | 'Salary'
+  | 'Freelance'
+  | 'Business'
+  | 'Bonus'
+  | 'Gift'
+  | 'Refund'
+  | 'Cashback'
+  | 'Investment return'
+  | 'Interest'
+  | 'Borrowed money'
+  | 'Opening Balance'
+  | 'Other';
+
 export type PaymentMethod = 'UPI' | 'Card' | 'Cash' | 'NetBanking' | 'Wallet' | 'Other';
 
 export interface Expense {
@@ -32,11 +46,53 @@ export interface Expense {
   updatedAt?: string;
 }
 
+export interface Income {
+  id: string;
+  userId: string;
+  amount: number;
+  source: IncomeSource;
+  description: string;
+  payer?: string;
+  date: string; // ISO format: YYYY-MM-DD
+  paymentMethod: PaymentMethod;
+  receiptUrl?: string;
+  notes?: string;
+  tags?: string[];
+  isOpeningBalance?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type TransactionType = 'income' | 'expense';
+
+export interface UnifiedTransaction {
+  id: string;
+  type: TransactionType;
+  amount: number;
+  categoryOrSource: string;
+  description: string;
+  merchantOrPayer?: string;
+  date: string;
+  paymentMethod: PaymentMethod;
+  receiptUrl?: string;
+  notes?: string;
+  isOpeningBalance?: boolean;
+  rawExpense?: Expense;
+  rawIncome?: Income;
+  createdAt?: string;
+}
+
+export type BudgetPeriod = 'monthly' | 'weekly' | 'custom';
+
 export interface Budget {
   id: string;
   userId: string;
-  category: ExpenseCategory;
+  category?: ExpenseCategory;
+  isOverall?: boolean;
+  name?: string;
   amount: number;
+  period?: BudgetPeriod;
+  alertThreshold?: number; // e.g. 80, 90, 100
   month?: string; // e.g. "2026-10"
   updatedAt?: string;
 }
@@ -48,6 +104,7 @@ export interface UserProfile {
   photoURL?: string | null;
   currency: string; // "₹", "$", "€", "£"
   monthlyIncome?: number;
+  openingBalance?: number;
   totalBudgetLimit?: number;
   notificationsEnabled: boolean;
   biometricsEnabled: boolean;
