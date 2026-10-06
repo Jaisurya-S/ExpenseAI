@@ -47,12 +47,8 @@ import {
   Trash2,
   Edit3,
   Tag,
-  Info,
   Wallet,
-  Sparkles,
-  ChevronDown,
 } from '../../components/ui/icons';
-import { Icons } from '../../components/ui/icons';
 
 type SortOption = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc';
 type DateRangeOption = 'ALL' | 'this-month' | 'last-month' | 'this-week' | 'this-year';
@@ -146,22 +142,18 @@ export default function ExpensesScreen() {
   const filteredTransactions = useMemo(() => {
     return allTransactions
       .filter((tx) => {
-        // 1. Type filter
         if (selectedType !== 'ALL' && tx.type !== selectedType) {
           return false;
         }
 
-        // 2. Category / Source filter
         if (selectedCategory !== 'ALL' && tx.categoryOrSource !== selectedCategory) {
           return false;
         }
 
-        // 3. Payment method filter
         if (selectedPaymentMethod !== 'ALL' && tx.paymentMethod !== selectedPaymentMethod) {
           return false;
         }
 
-        // 4. Date Range filter
         if (dateRange === 'this-month' && (!tx.date || !tx.date.startsWith(currentMonthKey))) {
           return false;
         }
@@ -175,7 +167,6 @@ export default function ExpensesScreen() {
           return false;
         }
 
-        // 5. Search query
         if (search.trim()) {
           const q = search.toLowerCase();
           const matchDesc = (tx.description || '').toLowerCase().includes(q);
@@ -345,7 +336,6 @@ export default function ExpensesScreen() {
     'amount-asc': 'Lowest',
   };
 
-  // Categories list based on active type
   const categoryOptions = useMemo(() => {
     if (selectedType === 'income') return ALL_INCOME_SOURCES;
     if (selectedType === 'expense') return ALL_CATEGORIES;
@@ -360,25 +350,11 @@ export default function ExpensesScreen() {
           <View>
             <Text style={[styles.headerTitle, { color: colors.text }]}>Transactions</Text>
             <Text style={[styles.headerSub, { color: colors.textMuted }]}>
-              {filteredTransactions.length} of {allTransactions.length} records
+              {filteredTransactions.length} records
             </Text>
           </View>
 
           <View style={styles.headerRightActions}>
-            <TouchableOpacity
-              onPress={() => setExportModalVisible(true)}
-              style={[
-                styles.iconBtn,
-                {
-                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
-                  borderColor: colors.cardBorder,
-                },
-              ]}
-              accessibilityLabel="Export transactions"
-            >
-              <FileSpreadsheet size={15} color={colors.text} />
-            </TouchableOpacity>
-
             <TouchableOpacity
               onPress={() => router.push('/modal/add-income')}
               style={[
@@ -389,7 +365,7 @@ export default function ExpensesScreen() {
                 },
               ]}
             >
-              <ArrowDownLeft size={13} color={colors.success} />
+              <ArrowDownLeft size={12} color={colors.success} />
               <Text style={[styles.actionBtnText, { color: colors.text }]}>Income</Text>
             </TouchableOpacity>
 
@@ -408,7 +384,7 @@ export default function ExpensesScreen() {
           </View>
         </View>
 
-        {/* Live Filter Summary Card */}
+        {/* Compact Summary Ribbon */}
         <View
           style={[
             styles.summaryCard,
@@ -420,27 +396,27 @@ export default function ExpensesScreen() {
           ]}
         >
           <View style={styles.summaryCol}>
-            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Inflow</Text>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>INFLOW</Text>
             <Text style={[styles.summaryVal, { color: colors.success }]}>
               +{currency}
-              {totalFilteredIncome.toLocaleString('en-IN')}
+              {Math.round(totalFilteredIncome).toLocaleString('en-IN')}
             </Text>
           </View>
 
           <View style={[styles.summaryDivider, { backgroundColor: colors.cardBorder }]} />
 
           <View style={styles.summaryCol}>
-            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Outflow</Text>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>OUTFLOW</Text>
             <Text style={[styles.summaryVal, { color: colors.danger }]}>
               -{currency}
-              {totalFilteredExpense.toLocaleString('en-IN')}
+              {Math.round(totalFilteredExpense).toLocaleString('en-IN')}
             </Text>
           </View>
 
           <View style={[styles.summaryDivider, { backgroundColor: colors.cardBorder }]} />
 
           <View style={styles.summaryCol}>
-            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Net Cash</Text>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>NET CASH</Text>
             <Text
               style={[
                 styles.summaryVal,
@@ -449,19 +425,19 @@ export default function ExpensesScreen() {
             >
               {netFilteredCashflow >= 0 ? '+' : ''}
               {currency}
-              {netFilteredCashflow.toLocaleString('en-IN')}
+              {Math.round(netFilteredCashflow).toLocaleString('en-IN')}
             </Text>
           </View>
 
           {activeFiltersCount > 0 && (
             <TouchableOpacity onPress={resetAllFilters} style={styles.clearFilterBadge}>
               <Text style={[styles.clearFilterText, { color: colors.accentPurple }]}>Clear</Text>
-              <X size={11} color={colors.accentPurple} />
+              <X size={10} color={colors.accentPurple} />
             </TouchableOpacity>
           )}
         </View>
 
-        {/* Search Bar & Controls */}
+        {/* Search Bar & Filter Controls */}
         <View style={styles.searchRow}>
           <View
             style={[
@@ -473,17 +449,17 @@ export default function ExpensesScreen() {
               },
             ]}
           >
-            <Search size={15} color={colors.textMuted} style={styles.searchIcon} />
+            <Search size={14} color={colors.textMuted} style={styles.searchIcon} />
             <TextInput
               style={[styles.searchInput, { color: colors.text }]}
-              placeholder="Search descriptions, merchants, tags..."
+              placeholder="Search transactions..."
               placeholderTextColor={colors.textMuted}
               value={search}
               onChangeText={setSearch}
             />
             {search !== '' && (
               <TouchableOpacity onPress={() => setSearch('')}>
-                <X size={15} color={colors.textMuted} />
+                <X size={14} color={colors.textMuted} />
               </TouchableOpacity>
             )}
           </View>
@@ -500,7 +476,7 @@ export default function ExpensesScreen() {
               },
             ]}
           >
-            <ArrowUpDown size={13} color={colors.text} />
+            <ArrowUpDown size={12} color={colors.text} />
             <Text style={[styles.sortBtnText, { color: colors.textSecondary }]}>
               {sortLabels[sortBy]}
             </Text>
@@ -533,7 +509,7 @@ export default function ExpensesScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Primary Type Tabs: All | Expenses | Income */}
+        {/* Segmented Type Switcher: All | Expenses | Income */}
         <View style={styles.typeTabContainer}>
           <View
             style={[
@@ -581,13 +557,12 @@ export default function ExpensesScreen() {
           </View>
         </View>
 
-        {/* Quick Date Range & Category Chips */}
+        {/* Horizontal Chips: Date Presets & Categories */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.horizontalChipsScroll}
         >
-          {/* Date range chips */}
           <TouchableOpacity
             onPress={() => setDateRange(dateRange === 'this-month' ? 'ALL' : 'this-month')}
             style={[
@@ -599,7 +574,7 @@ export default function ExpensesScreen() {
             ]}
           >
             <Calendar
-              size={11}
+              size={10}
               color={dateRange === 'this-month' ? colors.primaryText : colors.textMuted}
             />
             <Text
@@ -640,7 +615,6 @@ export default function ExpensesScreen() {
 
           <View style={[styles.chipDivider, { backgroundColor: colors.cardBorder }]} />
 
-          {/* Category Chips */}
           <TouchableOpacity
             onPress={() => setSelectedCategory('ALL')}
             style={[
@@ -700,7 +674,7 @@ export default function ExpensesScreen() {
           })}
         </ScrollView>
 
-        {/* Transactions List */}
+        {/* Transactions Feed */}
         <ScrollView
           style={styles.listContainer}
           contentContainerStyle={styles.listContent}
@@ -722,7 +696,7 @@ export default function ExpensesScreen() {
                   { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },
                 ]}
               >
-                <Search size={24} color={colors.textMuted} />
+                <Search size={22} color={colors.textMuted} />
               </View>
               <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
                 No transactions match your filters
@@ -761,6 +735,7 @@ export default function ExpensesScreen() {
                 (sum, tx) => sum + (tx.type === 'income' ? Number(tx.amount) : -Number(tx.amount)),
                 0
               );
+              const formattedDateNet = Math.round(Math.abs(dateNet)).toLocaleString('en-IN');
 
               return (
                 <View key={dateStr} style={styles.dateGroup}>
@@ -774,9 +749,9 @@ export default function ExpensesScreen() {
                         { color: dateNet >= 0 ? colors.success : colors.textMuted },
                       ]}
                     >
-                      {dateNet >= 0 ? '+' : ''}
+                      {dateNet >= 0 ? '+' : '-'}
                       {currency}
-                      {Math.abs(dateNet).toLocaleString('en-IN')}
+                      {formattedDateNet}
                     </Text>
                   </View>
 
@@ -828,7 +803,7 @@ export default function ExpensesScreen() {
               </View>
 
               <ScrollView contentContainerStyle={styles.detailContent}>
-                {/* Master Amount Banner */}
+                {/* Hero Amount Banner */}
                 <View
                   style={[
                     styles.detailHeroCard,
@@ -850,7 +825,10 @@ export default function ExpensesScreen() {
                   >
                     {detailModalTx.type === 'income' ? '+' : '-'}
                     {currency}
-                    {Number(detailModalTx.amount).toLocaleString('en-IN')}
+                    {Number(detailModalTx.amount).toLocaleString('en-IN', {
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 2,
+                    })}
                   </Text>
                   <Text style={[styles.detailHeroTitle, { color: colors.text }]}>
                     {detailModalTx.description || detailModalTx.categoryOrSource}
@@ -1128,7 +1106,7 @@ export default function ExpensesScreen() {
         </SafeAreaView>
       </Modal>
 
-      {/* Export / Share Modal */}
+      {/* Export Modal */}
       <Modal
         visible={exportModalVisible}
         animationType="fade"
@@ -1207,19 +1185,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  iconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
@@ -1245,10 +1215,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginHorizontal: 16,
-    marginBottom: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 14,
+    marginBottom: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
     borderWidth: 1,
     position: 'relative',
   },
@@ -1257,25 +1227,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   summaryLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    fontSize: 9.5,
+    fontWeight: '700',
+    letterSpacing: 0.5,
     marginBottom: 2,
   },
   summaryVal: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '800',
     letterSpacing: -0.2,
   },
   summaryDivider: {
     width: 1,
-    height: 22,
+    height: 20,
   },
   clearFilterBadge: {
     position: 'absolute',
-    top: -8,
-    right: 12,
+    top: -7,
+    right: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
@@ -1285,50 +1254,50 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   clearFilterText: {
-    fontSize: 9.5,
+    fontSize: 9,
     fontWeight: '700',
   },
   searchRow: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    gap: 8,
+    gap: 6,
     marginBottom: 8,
   },
   searchContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 9,
     borderWidth: 1,
-    paddingHorizontal: 10,
-    height: 38,
+    paddingHorizontal: 9,
+    height: 36,
   },
   searchIcon: {
     marginRight: 6,
   },
   searchInput: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12.5,
     height: '100%',
     paddingVertical: 0,
   },
   sortBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    borderRadius: 10,
+    gap: 4,
+    borderRadius: 9,
     borderWidth: 1,
-    paddingHorizontal: 10,
-    height: 38,
+    paddingHorizontal: 9,
+    height: 36,
   },
   sortBtnText: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '600',
   },
   filterTriggerBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 9,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1338,142 +1307,142 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 15,
+    height: 15,
+    borderRadius: 7.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
   filterBadgeCountText: {
     color: '#FFFFFF',
-    fontSize: 9.5,
+    fontSize: 9,
     fontWeight: '800',
   },
   typeTabContainer: {
     paddingHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   segmentedControl: {
     flexDirection: 'row',
-    borderRadius: 10,
-    padding: 3,
+    borderRadius: 9,
+    padding: 2.5,
     borderWidth: 1,
   },
   segmentTab: {
     flex: 1,
-    paddingVertical: 6,
+    paddingVertical: 5,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 7,
+    borderRadius: 6.5,
   },
   segmentTabText: {
-    fontSize: 12,
+    fontSize: 11.5,
   },
   horizontalChipsScroll: {
     paddingHorizontal: 16,
-    gap: 6,
-    paddingBottom: 8,
+    gap: 5,
+    paddingBottom: 6,
     alignItems: 'center',
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 7,
     borderWidth: 1,
   },
   chipText: {
-    fontSize: 11.5,
+    fontSize: 11,
   },
   chipDivider: {
     width: 1,
-    height: 16,
+    height: 14,
     marginHorizontal: 2,
   },
   categoryDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
   listContainer: {
     flex: 1,
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 40,
+    paddingBottom: 36,
   },
   dateGroup: {
-    marginBottom: 12,
+    marginBottom: 10,
   },
   dateGroupHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
-    paddingHorizontal: 4,
+    marginBottom: 4,
+    paddingHorizontal: 2,
   },
   dateGroupTitle: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
-    letterSpacing: 0.2,
+    letterSpacing: 0.1,
   },
   dateGroupSum: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '600',
   },
   emptyState: {
-    borderRadius: 16,
-    padding: 28,
+    borderRadius: 14,
+    padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    marginTop: 20,
+    marginTop: 16,
   },
   emptyIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   emptyStateTitle: {
-    fontSize: 14.5,
+    fontSize: 14,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: 3,
     textAlign: 'center',
   },
   emptyStateSub: {
-    fontSize: 12,
+    fontSize: 11.5,
     textAlign: 'center',
-    lineHeight: 17,
-    marginBottom: 16,
+    lineHeight: 16,
+    marginBottom: 14,
   },
   emptyActionsRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   emptyActionBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
     borderWidth: 1,
   },
   emptyActionBtnText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '600',
   },
   emptyActionBtnPrimary: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
   },
   emptyActionBtnPrimaryText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
   },
   modalContainer: {
@@ -1487,76 +1456,76 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderBottomWidth: 1,
   },
   modalTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
   },
   modalSubtitle: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '500',
     marginTop: 2,
   },
   modalCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },
   detailContent: {
     padding: 16,
-    gap: 14,
+    gap: 12,
   },
   detailHeroCard: {
-    borderRadius: 18,
-    padding: 18,
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
     alignItems: 'center',
   },
   detailHeroLabel: {
-    fontSize: 10.5,
+    fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.8,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   detailHeroAmount: {
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: '800',
     letterSpacing: -0.5,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   detailHeroTitle: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '600',
   },
   attributesCard: {
-    borderRadius: 16,
-    paddingHorizontal: 14,
+    borderRadius: 14,
+    paddingHorizontal: 12,
     borderWidth: 1,
   },
   attributeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
   },
   attributeLabel: {
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: '500',
   },
   attributeVal: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '600',
     maxWidth: '60%',
     textAlign: 'right',
   },
   detailActionRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 6,
+    gap: 8,
+    marginTop: 4,
   },
   editBtn: {
     flex: 1,
@@ -1564,11 +1533,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 11,
+    borderRadius: 10,
   },
   editBtnText: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '700',
   },
   deleteModalBtn: {
@@ -1577,62 +1546,62 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 11,
+    borderRadius: 10,
     borderWidth: 1,
   },
   deleteModalBtnText: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '700',
   },
   filterModalContent: {
     padding: 16,
   },
   filterSectionTitle: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '800',
     letterSpacing: 1,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   filterChipGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
   },
   modalFilterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 9,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
     borderWidth: 1,
   },
   modalFilterChipText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '600',
   },
   filterModalBottomRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 28,
+    gap: 8,
+    marginTop: 24,
   },
   filterResetBtn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
     alignItems: 'center',
     borderWidth: 1,
   },
   filterResetBtnText: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
   },
   filterApplyBtn: {
     flex: 2,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
     alignItems: 'center',
   },
   filterApplyBtnText: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '700',
   },
   exportOverlay: {
@@ -1642,32 +1611,32 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   exportCard: {
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 18,
+    padding: 18,
     borderWidth: 1,
   },
   exportHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   exportTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
   },
   exportDesc: {
-    fontSize: 12.5,
-    lineHeight: 18,
-    marginBottom: 16,
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: 14,
   },
   exportBtn: {
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
     alignItems: 'center',
   },
   exportBtnText: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '700',
   },
 });
