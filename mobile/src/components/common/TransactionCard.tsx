@@ -26,6 +26,7 @@ import {
   HandCoins,
   PiggyBank,
   CirclePlus,
+  Trash2,
 } from '../ui/icons';
 
 interface TransactionCardProps {
@@ -79,6 +80,7 @@ function formatDisplayDate(dateStr: string) {
 export const TransactionCard: React.FC<TransactionCardProps> = ({
   transaction,
   onPress,
+  onDelete,
 }) => {
   const { profile } = useAuthStore();
   const { colors, isDark } = useAppTheme();
@@ -87,37 +89,26 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
 
   let iconName = isIncome ? 'Briefcase' : 'Receipt';
   let categoryLabel = transaction.categoryOrSource;
-  let catColor: string = isIncome ? colors.success : colors.textSecondary;
-  let catBgColor: string = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)';
 
   if (isIncome) {
     const srcMeta = INCOME_SOURCES[transaction.categoryOrSource as keyof typeof INCOME_SOURCES];
     if (srcMeta) {
       iconName = srcMeta.iconName;
       categoryLabel = srcMeta.label;
-      catColor = srcMeta.color;
-      catBgColor = srcMeta.bgColor;
     }
   } else {
     const catMeta = CATEGORIES[transaction.categoryOrSource as keyof typeof CATEGORIES];
     if (catMeta) {
       iconName = catMeta.iconName;
       categoryLabel = catMeta.label;
-      catColor = catMeta.color;
-      catBgColor = catMeta.bgColor;
     }
   }
 
   const IconComponent = IconMap[iconName] || (isIncome ? CirclePlus : MoreHorizontal);
 
-  const formattedAmount = Number(transaction.amount).toLocaleString('en-IN', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
-
   return (
     <TouchableOpacity
-      activeOpacity={0.65}
+      activeOpacity={0.7}
       onPress={onPress}
       style={[
         styles.card,
@@ -128,17 +119,17 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
         },
       ]}
     >
-      {/* Left Icon */}
+      {/* Left Icon with subtle monochrome squircle container */}
       <View
         style={[
           styles.iconContainer,
           {
-            backgroundColor: catBgColor,
+            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
             borderColor: colors.cardBorder,
           },
         ]}
       >
-        <IconComponent size={15} color={catColor} />
+        <IconComponent size={16} color={isIncome ? colors.success : colors.text} />
       </View>
 
       {/* Center Details */}
@@ -148,17 +139,17 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
         </Text>
 
         <View style={styles.subRow}>
-          <Text style={[styles.categoryText, { color: colors.textSecondary }]} numberOfLines={1}>
+          <Text style={[styles.categoryText, { color: colors.textSecondary }]}>
             {categoryLabel}
           </Text>
-          <View style={[styles.dot, { backgroundColor: colors.textMuted }]} />
+          <View style={[styles.dot, { backgroundColor: colors.cardBorder }]} />
           <Text style={[styles.dateText, { color: colors.textMuted }]}>
             {formatDisplayDate(transaction.date)}
           </Text>
         </View>
       </View>
 
-      {/* Right Amount & Payment Method */}
+      {/* Right Amount */}
       <View style={styles.rightSection}>
         <Text
           style={[
@@ -170,12 +161,37 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
         >
           {isIncome ? '+' : '-'}
           {currency}
-          {formattedAmount}
+          {Number(transaction.amount).toLocaleString('en-IN', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+          })}
         </Text>
         <Text style={[styles.methodText, { color: colors.textMuted }]}>
           {transaction.paymentMethod || 'UPI'}
         </Text>
       </View>
+
+      {onDelete && (
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={(e) => {
+            if (e && typeof (e as any).stopPropagation === 'function') {
+              (e as any).stopPropagation();
+            }
+            onDelete();
+          }}
+          style={[
+            styles.deleteBtn,
+            {
+              backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2',
+              borderColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FEE2E2',
+            },
+          ]}
+          accessibilityLabel="Delete transaction"
+        >
+          <Trash2 size={13} color={colors.danger} />
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 };
@@ -185,7 +201,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 14,
-    paddingVertical: 12,
+    paddingVertical: 11,
     paddingHorizontal: 14,
     marginBottom: 8,
     borderWidth: 1,
@@ -201,6 +217,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+    borderWidth: 1,
   },
   centerDetails: {
     flex: 1,
@@ -220,13 +237,11 @@ const styles = StyleSheet.create({
   categoryText: {
     fontSize: 12,
     fontWeight: '500',
-    maxWidth: 130,
   },
   dot: {
     width: 3,
     height: 3,
     borderRadius: 1.5,
-    opacity: 0.5,
   },
   dateText: {
     fontSize: 11,
@@ -235,10 +250,10 @@ const styles = StyleSheet.create({
   rightSection: {
     alignItems: 'flex-end',
     justifyContent: 'center',
-    marginLeft: 10,
+    marginLeft: 8,
   },
   amountText: {
-    fontSize: 15,
+    fontSize: 14.5,
     fontWeight: '700',
     letterSpacing: -0.3,
     marginBottom: 1,
@@ -247,5 +262,14 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     fontWeight: '500',
     textTransform: 'uppercase',
+  },
+  deleteBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 10,
   },
 });
