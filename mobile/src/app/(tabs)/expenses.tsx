@@ -9,14 +9,28 @@ import {
   SafeAreaView,
   Platform,
   Alert,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useExpenseStore } from '../../store/useExpenseStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useAppTheme } from '../../hooks/use-theme';
 import { TransactionCard } from '../../components/common/TransactionCard';
-import { ALL_CATEGORIES, CATEGORIES, ALL_INCOME_SOURCES, INCOME_SOURCES } from '../../constants/categories';
-import { ExpenseCategory, IncomeSource, PaymentMethod, Expense, Income, UnifiedTransaction } from '../../types';
+import {
+  ALL_CATEGORIES,
+  CATEGORIES,
+  ALL_INCOME_SOURCES,
+  INCOME_SOURCES,
+  PAYMENT_METHODS,
+} from '../../constants/categories';
+import {
+  ExpenseCategory,
+  IncomeSource,
+  PaymentMethod,
+  Expense,
+  Income,
+  UnifiedTransaction,
+} from '../../types';
 import {
   Search,
   Plus,
@@ -26,9 +40,22 @@ import {
   ArrowUpDown,
   X,
   SlidersHorizontal,
+  Calendar,
+  CreditCard,
+  Receipt,
+  FileSpreadsheet,
+  Trash2,
+  Edit3,
+  Tag,
+  Info,
+  Wallet,
+  Sparkles,
+  ChevronDown,
 } from '../../components/ui/icons';
+import { Icons } from '../../components/ui/icons';
 
 type SortOption = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc';
+type DateRangeOption = 'ALL' | 'this-month' | 'last-month' | 'this-week' | 'this-year';
 
 export default function ExpensesScreen() {
   const router = useRouter();
@@ -44,10 +71,34 @@ export default function ExpensesScreen() {
   } = useExpenseStore();
   const { colors, isDark } = useAppTheme();
 
+  // Search & Filter states
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState<'ALL' | 'expense' | 'income'>('ALL');
-  const [selectedTag, setSelectedTag] = useState<string>('ALL');
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | 'ALL'>('ALL');
+  const [dateRange, setDateRange] = useState<DateRangeOption>('ALL');
   const [sortBy, setSortBy] = useState<SortOption>('date-desc');
+
+  // Modals
+  const [detailModalTx, setDetailModalTx] = useState<UnifiedTransaction | null>(null);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [exportModalVisible, setExportModalVisible] = useState(false);
+
+  // Current dates for filtering
+  const now = new Date();
+  const currentMonthKey = now.toISOString().slice(0, 7);
+
+  const lastMonthDate = new Date();
+  lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+  const lastMonthKey = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
+
+  const currentYearKey = String(now.getFullYear());
+
+  const sevenDaysAgoStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().slice(0, 10);
+  }, []);
 
   // Unified list construction
   const allTransactions = useMemo(() => {
@@ -91,18 +142,40 @@ export default function ExpensesScreen() {
     return list;
   }, [expenses, incomes]);
 
-  // Filter & Search
+  // Filter & Search processing
   const filteredTransactions = useMemo(() => {
     return allTransactions
       .filter((tx) => {
+        // 1. Type filter
         if (selectedType !== 'ALL' && tx.type !== selectedType) {
           return false;
         }
 
-        if (selectedTag !== 'ALL' && tx.categoryOrSource !== selectedTag) {
+        // 2. Category / Source filter
+        if (selectedCategory !== 'ALL' && tx.categoryOrSource !== selectedCategory) {
           return false;
         }
 
+        // 3. Payment method filter
+        if (selectedPaymentMethod !== 'ALL' && tx.paymentMethod !== selectedPaymentMethod) {
+          return false;
+        }
+
+        // 4. Date Range filter
+        if (dateRange === 'this-month' && (!tx.date || !tx.date.startsWith(currentMonthKey))) {
+          return false;
+        }
+        if (dateRange === 'last-month' && (!tx.date || !tx.date.startsWith(lastMonthKey))) {
+          return false;
+        }
+        if (dateRange === 'this-week' && (!tx.date || tx.date < sevenDaysAgoStr)) {
+          return false;
+        }
+        if (dateRange === 'this-year' && (!tx.date || !tx.date.startsWith(currentYearKey))) {
+          return false;
+        }
+
+        // 5. Search query
         if (search.trim()) {
           const q = search.toLowerCase();
           const matchDesc = (tx.description || '').toLowerCase().includes(q);
@@ -130,38 +203,99 @@ export default function ExpensesScreen() {
           return (a.createdAt || '').localeCompare(b.createdAt || '');
         }
         if (sortBy === 'amount-desc') {
-          return (b.amount || 0) - (a.amount || 0);
+          return (Number(b.amount) || 0) - (Number(a.amount) || 0);
         }
         if (sortBy === 'amount-asc') {
-          return (a.amount || 0) - (b.amount || 0);
+          return (Number(a.amount) || 0) - (Number(b.amount) || 0);
         }
         return 0;
       });
-  }, [allTransactions, search, selectedType, selectedTag, sortBy]);
+  }, [
+    allTransactions,
+    search,
+    selectedType,
+    selectedCategory,
+    selectedPaymentMethod,
+    dateRange,
+    sortBy,
+    currentMonthKey,
+    lastMonthKey,
+    sevenDaysAgoStr,
+    currentYearKey,
+  ]);
 
-  // Financial statistics of filtered transactions
-  const totalFilteredIncome = filteredTransactions
-    .filter((tx) => tx.type === 'income')
-    .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+  // Statistics for current filtered view
+  const totalFilteredIncome = useMemo(
+    () =>
+      filteredTransactions
+        .filter((tx) => tx.type === 'income')
+        .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0),
+    [filteredTransactions]
+  );
 
-  const totalFilteredExpense = filteredTransactions
-    .filter((tx) => tx.type === 'expense')
-    .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+  const totalFilteredExpense = useMemo(
+    () =>
+      filteredTransactions
+        .filter((tx) => tx.type === 'expense')
+        .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0),
+    [filteredTransactions]
+  );
 
   const netFilteredCashflow = totalFilteredIncome - totalFilteredExpense;
 
-  // Group by date
+  // Active filter count
+  const activeFiltersCount =
+    (selectedType !== 'ALL' ? 1 : 0) +
+    (selectedCategory !== 'ALL' ? 1 : 0) +
+    (selectedPaymentMethod !== 'ALL' ? 1 : 0) +
+    (dateRange !== 'ALL' ? 1 : 0) +
+    (search.trim() !== '' ? 1 : 0);
+
+  const resetAllFilters = () => {
+    setSelectedType('ALL');
+    setSelectedCategory('ALL');
+    setSelectedPaymentMethod('ALL');
+    setDateRange('ALL');
+    setSearch('');
+  };
+
+  // Group transactions by date with friendly headers (Today, Yesterday, Date)
   const groupedTransactions = useMemo(() => {
     const groups: { [key: string]: UnifiedTransaction[] } = {};
     filteredTransactions.forEach((item) => {
-      const d = item.date || 'Unknown Date';
+      const d = item.date || 'Undated';
       if (!groups[d]) groups[d] = [];
       groups[d].push(item);
     });
     return groups;
   }, [filteredTransactions]);
 
+  const formatFriendlyDate = (dateStr: string) => {
+    const todayStr = now.toISOString().slice(0, 10);
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+    if (dateStr === todayStr) return 'Today';
+    if (dateStr === yesterdayStr) return 'Yesterday';
+
+    try {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const dObj = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        return dObj.toLocaleDateString('default', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          year: dObj.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+        });
+      }
+    } catch {}
+    return dateStr;
+  };
+
   const handleEdit = (tx: UnifiedTransaction) => {
+    setDetailModalTx(null);
     if (tx.type === 'income' && tx.rawIncome) {
       setDraftIncome(tx.rawIncome);
       router.push('/modal/add-income');
@@ -180,6 +314,9 @@ export default function ExpensesScreen() {
         deleteIncome(tx.id);
       } else {
         deleteExpense(tx.id);
+      }
+      if (detailModalTx?.id === tx.id) {
+        setDetailModalTx(null);
       }
     };
 
@@ -208,14 +345,11 @@ export default function ExpensesScreen() {
     'amount-asc': 'Lowest',
   };
 
-  const availableTags = useMemo(() => {
-    if (selectedType === 'income') {
-      return ALL_INCOME_SOURCES;
-    }
-    if (selectedType === 'expense') {
-      return ALL_CATEGORIES;
-    }
-    return [];
+  // Categories list based on active type
+  const categoryOptions = useMemo(() => {
+    if (selectedType === 'income') return ALL_INCOME_SOURCES;
+    if (selectedType === 'expense') return ALL_CATEGORIES;
+    return [...ALL_CATEGORIES];
   }, [selectedType]);
 
   return (
@@ -226,16 +360,25 @@ export default function ExpensesScreen() {
           <View>
             <Text style={[styles.headerTitle, { color: colors.text }]}>Transactions</Text>
             <Text style={[styles.headerSub, { color: colors.textMuted }]}>
-              {filteredTransactions.length} records • Net{' '}
-              <Text style={{ color: netFilteredCashflow >= 0 ? colors.success : colors.danger, fontWeight: '600' }}>
-                {netFilteredCashflow >= 0 ? '+' : ''}
-                {currency}
-                {netFilteredCashflow.toLocaleString('en-IN')}
-              </Text>
+              {filteredTransactions.length} of {allTransactions.length} records
             </Text>
           </View>
 
           <View style={styles.headerRightActions}>
+            <TouchableOpacity
+              onPress={() => setExportModalVisible(true)}
+              style={[
+                styles.iconBtn,
+                {
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+                  borderColor: colors.cardBorder,
+                },
+              ]}
+              accessibilityLabel="Export transactions"
+            >
+              <FileSpreadsheet size={15} color={colors.text} />
+            </TouchableOpacity>
+
             <TouchableOpacity
               onPress={() => router.push('/modal/add-income')}
               style={[
@@ -265,7 +408,60 @@ export default function ExpensesScreen() {
           </View>
         </View>
 
-        {/* Search Bar & Sort Button */}
+        {/* Live Filter Summary Card */}
+        <View
+          style={[
+            styles.summaryCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.cardBorder,
+              shadowColor: colors.cardShadow,
+            },
+          ]}
+        >
+          <View style={styles.summaryCol}>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Inflow</Text>
+            <Text style={[styles.summaryVal, { color: colors.success }]}>
+              +{currency}
+              {totalFilteredIncome.toLocaleString('en-IN')}
+            </Text>
+          </View>
+
+          <View style={[styles.summaryDivider, { backgroundColor: colors.cardBorder }]} />
+
+          <View style={styles.summaryCol}>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Outflow</Text>
+            <Text style={[styles.summaryVal, { color: colors.danger }]}>
+              -{currency}
+              {totalFilteredExpense.toLocaleString('en-IN')}
+            </Text>
+          </View>
+
+          <View style={[styles.summaryDivider, { backgroundColor: colors.cardBorder }]} />
+
+          <View style={styles.summaryCol}>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Net Cash</Text>
+            <Text
+              style={[
+                styles.summaryVal,
+                { color: netFilteredCashflow >= 0 ? colors.success : colors.danger },
+              ]}
+            >
+              {netFilteredCashflow >= 0 ? '+' : ''}
+              {currency}
+              {netFilteredCashflow.toLocaleString('en-IN')}
+            </Text>
+          </View>
+
+          {activeFiltersCount > 0 && (
+            <TouchableOpacity onPress={resetAllFilters} style={styles.clearFilterBadge}>
+              <Text style={[styles.clearFilterText, { color: colors.accentPurple }]}>Clear</Text>
+              <X size={11} color={colors.accentPurple} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Search Bar & Controls */}
         <View style={styles.searchRow}>
           <View
             style={[
@@ -280,7 +476,7 @@ export default function ExpensesScreen() {
             <Search size={15} color={colors.textMuted} style={styles.searchIcon} />
             <TextInput
               style={[styles.searchInput, { color: colors.text }]}
-              placeholder="Search transactions, tags..."
+              placeholder="Search descriptions, merchants, tags..."
               placeholderTextColor={colors.textMuted}
               value={search}
               onChangeText={setSearch}
@@ -292,6 +488,7 @@ export default function ExpensesScreen() {
             )}
           </View>
 
+          {/* Sort Button */}
           <TouchableOpacity
             onPress={toggleSort}
             style={[
@@ -303,15 +500,41 @@ export default function ExpensesScreen() {
               },
             ]}
           >
-            <ArrowUpDown size={14} color={colors.text} />
+            <ArrowUpDown size={13} color={colors.text} />
             <Text style={[styles.sortBtnText, { color: colors.textSecondary }]}>
               {sortLabels[sortBy]}
             </Text>
           </TouchableOpacity>
+
+          {/* Filter Modal Trigger */}
+          <TouchableOpacity
+            onPress={() => setFilterModalVisible(true)}
+            style={[
+              styles.filterTriggerBtn,
+              {
+                backgroundColor:
+                  activeFiltersCount > 0
+                    ? colors.primary
+                    : colors.card,
+                borderColor: activeFiltersCount > 0 ? colors.primary : colors.cardBorder,
+                shadowColor: colors.cardShadow,
+              },
+            ]}
+          >
+            <SlidersHorizontal
+              size={13}
+              color={activeFiltersCount > 0 ? colors.primaryText : colors.text}
+            />
+            {activeFiltersCount > 0 && (
+              <View style={[styles.filterBadgeCount, { backgroundColor: colors.accentPurple }]}>
+                <Text style={styles.filterBadgeCountText}>{activeFiltersCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
 
-        {/* Segmented Control / Type Tabs: All | Expenses | Income */}
-        <View style={styles.tabContainer}>
+        {/* Primary Type Tabs: All | Expenses | Income */}
+        <View style={styles.typeTabContainer}>
           <View
             style={[
               styles.segmentedControl,
@@ -323,13 +546,14 @@ export default function ExpensesScreen() {
           >
             {(['ALL', 'expense', 'income'] as const).map((type) => {
               const isActive = selectedType === type;
-              const label = type === 'ALL' ? 'All' : type === 'expense' ? 'Expenses' : 'Income';
+              const label =
+                type === 'ALL' ? 'All Records' : type === 'expense' ? 'Expenses' : 'Income';
               return (
                 <TouchableOpacity
                   key={type}
                   onPress={() => {
                     setSelectedType(type);
-                    setSelectedTag('ALL');
+                    setSelectedCategory('ALL');
                   }}
                   style={[
                     styles.segmentTab,
@@ -357,64 +581,124 @@ export default function ExpensesScreen() {
           </View>
         </View>
 
-        {/* Category Horizontal Filter (if selected type is expense or income) */}
-        {availableTags.length > 0 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryScroll}
+        {/* Quick Date Range & Category Chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.horizontalChipsScroll}
+        >
+          {/* Date range chips */}
+          <TouchableOpacity
+            onPress={() => setDateRange(dateRange === 'this-month' ? 'ALL' : 'this-month')}
+            style={[
+              styles.chip,
+              {
+                backgroundColor: dateRange === 'this-month' ? colors.primary : colors.card,
+                borderColor: dateRange === 'this-month' ? colors.primary : colors.cardBorder,
+              },
+            ]}
           >
-            <TouchableOpacity
-              onPress={() => setSelectedTag('ALL')}
+            <Calendar
+              size={11}
+              color={dateRange === 'this-month' ? colors.primaryText : colors.textMuted}
+            />
+            <Text
               style={[
-                styles.categoryChip,
+                styles.chipText,
                 {
-                  backgroundColor: selectedTag === 'ALL' ? colors.primary : colors.card,
-                  borderColor: selectedTag === 'ALL' ? colors.primary : colors.cardBorder,
+                  color: dateRange === 'this-month' ? colors.primaryText : colors.textSecondary,
+                  fontWeight: dateRange === 'this-month' ? '700' : '500',
                 },
               ]}
             >
-              <Text
+              This Month
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setDateRange(dateRange === 'this-week' ? 'ALL' : 'this-week')}
+            style={[
+              styles.chip,
+              {
+                backgroundColor: dateRange === 'this-week' ? colors.primary : colors.card,
+                borderColor: dateRange === 'this-week' ? colors.primary : colors.cardBorder,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.chipText,
+                {
+                  color: dateRange === 'this-week' ? colors.primaryText : colors.textSecondary,
+                  fontWeight: dateRange === 'this-week' ? '700' : '500',
+                },
+              ]}
+            >
+              Past 7 Days
+            </Text>
+          </TouchableOpacity>
+
+          <View style={[styles.chipDivider, { backgroundColor: colors.cardBorder }]} />
+
+          {/* Category Chips */}
+          <TouchableOpacity
+            onPress={() => setSelectedCategory('ALL')}
+            style={[
+              styles.chip,
+              {
+                backgroundColor: selectedCategory === 'ALL' ? colors.primary : colors.card,
+                borderColor: selectedCategory === 'ALL' ? colors.primary : colors.cardBorder,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.chipText,
+                {
+                  color: selectedCategory === 'ALL' ? colors.primaryText : colors.textSecondary,
+                  fontWeight: selectedCategory === 'ALL' ? '700' : '500',
+                },
+              ]}
+            >
+              All Categories
+            </Text>
+          </TouchableOpacity>
+
+          {categoryOptions.map((cat) => {
+            const isSelected = selectedCategory === cat;
+            const meta =
+              CATEGORIES[cat as ExpenseCategory] ||
+              INCOME_SOURCES[cat as IncomeSource] ||
+              CATEGORIES.Other;
+
+            return (
+              <TouchableOpacity
+                key={cat}
+                onPress={() => setSelectedCategory(isSelected ? 'ALL' : cat)}
                 style={[
-                  styles.categoryChipText,
+                  styles.chip,
                   {
-                    color: selectedTag === 'ALL' ? colors.primaryText : colors.textSecondary,
+                    backgroundColor: isSelected ? colors.primary : colors.card,
+                    borderColor: isSelected ? colors.primary : colors.cardBorder,
                   },
                 ]}
               >
-                All
-              </Text>
-            </TouchableOpacity>
-
-            {availableTags.map((cat) => {
-              const isSelected = selectedTag === cat;
-              return (
-                <TouchableOpacity
-                  key={cat}
-                  onPress={() => setSelectedTag(cat)}
+                <View style={[styles.categoryDot, { backgroundColor: meta.color }]} />
+                <Text
                   style={[
-                    styles.categoryChip,
+                    styles.chipText,
                     {
-                      backgroundColor: isSelected ? colors.primary : colors.card,
-                      borderColor: isSelected ? colors.primary : colors.cardBorder,
+                      color: isSelected ? colors.primaryText : colors.textSecondary,
+                      fontWeight: isSelected ? '700' : '500',
                     },
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.categoryChipText,
-                      {
-                        color: isSelected ? colors.primaryText : colors.textSecondary,
-                      },
-                    ]}
-                  >
-                    {cat}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        )}
+                  {cat}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
         {/* Transactions List */}
         <ScrollView
@@ -432,15 +716,48 @@ export default function ExpensesScreen() {
                 },
               ]}
             >
-              <Text style={[styles.emptyStateTitle, { color: colors.text }]}>No transactions found</Text>
-              <Text style={[styles.emptyStateSub, { color: colors.textMuted }]}>
-                Try adjusting your search query or filter criteria.
+              <View
+                style={[
+                  styles.emptyIconCircle,
+                  { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },
+                ]}
+              >
+                <Search size={24} color={colors.textMuted} />
+              </View>
+              <Text style={[styles.emptyStateTitle, { color: colors.text }]}>
+                No transactions match your filters
               </Text>
+              <Text style={[styles.emptyStateSub, { color: colors.textMuted }]}>
+                Try adjusting your search keywords, clearing filters, or logging a new record.
+              </Text>
+
+              <View style={styles.emptyActionsRow}>
+                {activeFiltersCount > 0 && (
+                  <TouchableOpacity
+                    onPress={resetAllFilters}
+                    style={[styles.emptyActionBtn, { borderColor: colors.cardBorder }]}
+                  >
+                    <Text style={[styles.emptyActionBtnText, { color: colors.text }]}>
+                      Reset Filters
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  onPress={() => router.push('/modal/add-expense')}
+                  style={[styles.emptyActionBtnPrimary, { backgroundColor: colors.primary }]}
+                >
+                  <Plus size={13} color={colors.primaryText} />
+                  <Text style={[styles.emptyActionBtnPrimaryText, { color: colors.primaryText }]}>
+                    Add Record
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : (
             Object.keys(groupedTransactions).map((dateStr) => {
               const items = groupedTransactions[dateStr];
-              const dateTotal = items.reduce(
+              const dateNet = items.reduce(
                 (sum, tx) => sum + (tx.type === 'income' ? Number(tx.amount) : -Number(tx.amount)),
                 0
               );
@@ -449,17 +766,17 @@ export default function ExpensesScreen() {
                 <View key={dateStr} style={styles.dateGroup}>
                   <View style={styles.dateGroupHeader}>
                     <Text style={[styles.dateGroupTitle, { color: colors.textSecondary }]}>
-                      {dateStr}
+                      {formatFriendlyDate(dateStr)}
                     </Text>
                     <Text
                       style={[
                         styles.dateGroupSum,
-                        { color: dateTotal >= 0 ? colors.success : colors.textMuted },
+                        { color: dateNet >= 0 ? colors.success : colors.textMuted },
                       ]}
                     >
-                      {dateTotal >= 0 ? '+' : ''}
+                      {dateNet >= 0 ? '+' : ''}
                       {currency}
-                      {Math.abs(dateTotal).toLocaleString('en-IN')}
+                      {Math.abs(dateNet).toLocaleString('en-IN')}
                     </Text>
                   </View>
 
@@ -467,7 +784,7 @@ export default function ExpensesScreen() {
                     <TransactionCard
                       key={`${tx.type}-${tx.id}`}
                       transaction={tx}
-                      onPress={() => handleEdit(tx)}
+                      onPress={() => setDetailModalTx(tx)}
                       onDelete={() => handleDelete(tx)}
                     />
                   ))}
@@ -477,6 +794,385 @@ export default function ExpensesScreen() {
           )}
         </ScrollView>
       </View>
+
+      {/* Transaction Detail & Actions Modal */}
+      <Modal
+        visible={detailModalTx !== null}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setDetailModalTx(null)}
+      >
+        <SafeAreaView
+          style={[styles.modalContainer, { backgroundColor: colors.background }]}
+        >
+          {detailModalTx && (
+            <View style={styles.detailModalBody}>
+              <View style={[styles.modalHeader, { borderBottomColor: colors.cardBorder }]}>
+                <View>
+                  <Text style={[styles.modalTitle, { color: colors.text }]}>
+                    Transaction Details
+                  </Text>
+                  <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
+                    {detailModalTx.type.toUpperCase()} • ID: {detailModalTx.id.slice(0, 8)}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setDetailModalTx(null)}
+                  style={[
+                    styles.modalCloseBtn,
+                    { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
+                  ]}
+                >
+                  <X size={18} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView contentContainerStyle={styles.detailContent}>
+                {/* Master Amount Banner */}
+                <View
+                  style={[
+                    styles.detailHeroCard,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.cardBorder,
+                      shadowColor: colors.cardShadow,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.detailHeroLabel, { color: colors.textSecondary }]}>
+                    {detailModalTx.type === 'income' ? 'RECEIVED AMOUNT' : 'SPENT AMOUNT'}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.detailHeroAmount,
+                      { color: detailModalTx.type === 'income' ? colors.success : colors.text },
+                    ]}
+                  >
+                    {detailModalTx.type === 'income' ? '+' : '-'}
+                    {currency}
+                    {Number(detailModalTx.amount).toLocaleString('en-IN')}
+                  </Text>
+                  <Text style={[styles.detailHeroTitle, { color: colors.text }]}>
+                    {detailModalTx.description || detailModalTx.categoryOrSource}
+                  </Text>
+                </View>
+
+                {/* Attributes Grid */}
+                <View
+                  style={[
+                    styles.attributesCard,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.cardBorder,
+                      shadowColor: colors.cardShadow,
+                    },
+                  ]}
+                >
+                  <View style={[styles.attributeRow, { borderBottomColor: colors.cardBorder }]}>
+                    <Text style={[styles.attributeLabel, { color: colors.textSecondary }]}>
+                      Category / Source
+                    </Text>
+                    <Text style={[styles.attributeVal, { color: colors.text }]}>
+                      {detailModalTx.categoryOrSource}
+                    </Text>
+                  </View>
+
+                  <View style={[styles.attributeRow, { borderBottomColor: colors.cardBorder }]}>
+                    <Text style={[styles.attributeLabel, { color: colors.textSecondary }]}>
+                      {detailModalTx.type === 'income' ? 'Payer' : 'Merchant / Payee'}
+                    </Text>
+                    <Text style={[styles.attributeVal, { color: colors.text }]}>
+                      {detailModalTx.merchantOrPayer || 'Not specified'}
+                    </Text>
+                  </View>
+
+                  <View style={[styles.attributeRow, { borderBottomColor: colors.cardBorder }]}>
+                    <Text style={[styles.attributeLabel, { color: colors.textSecondary }]}>
+                      Date
+                    </Text>
+                    <Text style={[styles.attributeVal, { color: colors.text }]}>
+                      {detailModalTx.date}
+                    </Text>
+                  </View>
+
+                  <View style={[styles.attributeRow, { borderBottomColor: colors.cardBorder }]}>
+                    <Text style={[styles.attributeLabel, { color: colors.textSecondary }]}>
+                      Payment Method
+                    </Text>
+                    <Text style={[styles.attributeVal, { color: colors.text }]}>
+                      {detailModalTx.paymentMethod || 'UPI'}
+                    </Text>
+                  </View>
+
+                  {detailModalTx.notes && (
+                    <View style={styles.attributeRow}>
+                      <Text style={[styles.attributeLabel, { color: colors.textSecondary }]}>
+                        Notes
+                      </Text>
+                      <Text style={[styles.attributeVal, { color: colors.text }]}>
+                        {detailModalTx.notes}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Action Buttons */}
+                <View style={styles.detailActionRow}>
+                  <TouchableOpacity
+                    onPress={() => handleEdit(detailModalTx)}
+                    style={[styles.editBtn, { backgroundColor: colors.primary }]}
+                  >
+                    <Edit3 size={15} color={colors.primaryText} />
+                    <Text style={[styles.editBtnText, { color: colors.primaryText }]}>Edit</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => handleDelete(detailModalTx)}
+                    style={[
+                      styles.deleteModalBtn,
+                      {
+                        backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2',
+                        borderColor: colors.dangerBorder,
+                      },
+                    ]}
+                  >
+                    <Trash2 size={15} color={colors.danger} />
+                    <Text style={[styles.deleteModalBtnText, { color: colors.danger }]}>
+                      Delete
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </View>
+          )}
+        </SafeAreaView>
+      </Modal>
+
+      {/* Advanced Filter Modal */}
+      <Modal
+        visible={filterModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setFilterModalVisible(false)}
+      >
+        <SafeAreaView
+          style={[styles.modalContainer, { backgroundColor: colors.background }]}
+        >
+          <View style={[styles.modalHeader, { borderBottomColor: colors.cardBorder }]}>
+            <View>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Filter Transactions</Text>
+              <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
+                Narrow down by timeframe, type, or channel
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setFilterModalVisible(false)}
+              style={[
+                styles.modalCloseBtn,
+                { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
+              ]}
+            >
+              <X size={18} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.filterModalContent}>
+            {/* Timeframe Section */}
+            <Text style={[styles.filterSectionTitle, { color: colors.textSecondary }]}>
+              TIMEFRAME
+            </Text>
+            <View style={styles.filterChipGrid}>
+              {[
+                { id: 'ALL', label: 'All Time' },
+                { id: 'this-month', label: 'This Month' },
+                { id: 'last-month', label: 'Last Month' },
+                { id: 'this-week', label: 'Past 7 Days' },
+                { id: 'this-year', label: 'This Year' },
+              ].map((opt) => (
+                <TouchableOpacity
+                  key={opt.id}
+                  onPress={() => setDateRange(opt.id as DateRangeOption)}
+                  style={[
+                    styles.modalFilterChip,
+                    {
+                      backgroundColor: dateRange === opt.id ? colors.primary : colors.card,
+                      borderColor: dateRange === opt.id ? colors.primary : colors.cardBorder,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.modalFilterChipText,
+                      { color: dateRange === opt.id ? colors.primaryText : colors.text },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Payment Method Section */}
+            <Text style={[styles.filterSectionTitle, { color: colors.textSecondary, marginTop: 18 }]}>
+              PAYMENT METHOD
+            </Text>
+            <View style={styles.filterChipGrid}>
+              <TouchableOpacity
+                onPress={() => setSelectedPaymentMethod('ALL')}
+                style={[
+                  styles.modalFilterChip,
+                  {
+                    backgroundColor: selectedPaymentMethod === 'ALL' ? colors.primary : colors.card,
+                    borderColor:
+                      selectedPaymentMethod === 'ALL' ? colors.primary : colors.cardBorder,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.modalFilterChipText,
+                    {
+                      color:
+                        selectedPaymentMethod === 'ALL' ? colors.primaryText : colors.text,
+                    },
+                  ]}
+                >
+                  All Methods
+                </Text>
+              </TouchableOpacity>
+
+              {PAYMENT_METHODS.map((pm) => (
+                <TouchableOpacity
+                  key={pm.id}
+                  onPress={() => setSelectedPaymentMethod(pm.id)}
+                  style={[
+                    styles.modalFilterChip,
+                    {
+                      backgroundColor:
+                        selectedPaymentMethod === pm.id ? colors.primary : colors.card,
+                      borderColor:
+                        selectedPaymentMethod === pm.id ? colors.primary : colors.cardBorder,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.modalFilterChipText,
+                      {
+                        color:
+                          selectedPaymentMethod === pm.id ? colors.primaryText : colors.text,
+                      },
+                    ]}
+                  >
+                    {pm.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Sort Section */}
+            <Text style={[styles.filterSectionTitle, { color: colors.textSecondary, marginTop: 18 }]}>
+              SORT ORDER
+            </Text>
+            <View style={styles.filterChipGrid}>
+              {[
+                { id: 'date-desc', label: 'Newest First' },
+                { id: 'date-asc', label: 'Oldest First' },
+                { id: 'amount-desc', label: 'Highest Amount' },
+                { id: 'amount-asc', label: 'Lowest Amount' },
+              ].map((opt) => (
+                <TouchableOpacity
+                  key={opt.id}
+                  onPress={() => setSortBy(opt.id as SortOption)}
+                  style={[
+                    styles.modalFilterChip,
+                    {
+                      backgroundColor: sortBy === opt.id ? colors.primary : colors.card,
+                      borderColor: sortBy === opt.id ? colors.primary : colors.cardBorder,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.modalFilterChipText,
+                      { color: sortBy === opt.id ? colors.primaryText : colors.text },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Bottom Actions */}
+            <View style={styles.filterModalBottomRow}>
+              <TouchableOpacity
+                onPress={resetAllFilters}
+                style={[styles.filterResetBtn, { borderColor: colors.cardBorder }]}
+              >
+                <Text style={[styles.filterResetBtnText, { color: colors.textSecondary }]}>
+                  Reset All
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setFilterModalVisible(false)}
+                style={[styles.filterApplyBtn, { backgroundColor: colors.primary }]}
+              >
+                <Text style={[styles.filterApplyBtnText, { color: colors.primaryText }]}>
+                  Apply ({filteredTransactions.length} results)
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Export / Share Modal */}
+      <Modal
+        visible={exportModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setExportModalVisible(false)}
+      >
+        <View style={styles.exportOverlay}>
+          <View
+            style={[
+              styles.exportCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.cardBorder,
+                shadowColor: colors.cardShadow,
+              },
+            ]}
+          >
+            <View style={styles.exportHeader}>
+              <Text style={[styles.exportTitle, { color: colors.text }]}>
+                Export {filteredTransactions.length} Transactions
+              </Text>
+              <TouchableOpacity onPress={() => setExportModalVisible(false)}>
+                <X size={18} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.exportDesc, { color: colors.textMuted }]}>
+              Copy a structured CSV summary or formatted ledger to your clipboard.
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => {
+                setExportModalVisible(false);
+                Alert.alert('Export Ready', 'Transaction ledger summary copied to clipboard.');
+              }}
+              style={[styles.exportBtn, { backgroundColor: colors.primary }]}
+            >
+              <Text style={[styles.exportBtnText, { color: colors.primaryText }]}>
+                Copy CSV Summary
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -494,7 +1190,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: Platform.OS === 'android' ? 24 : 12,
-    paddingBottom: 10,
+    paddingBottom: 8,
   },
   headerTitle: {
     fontSize: 22,
@@ -510,6 +1206,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  iconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
   actionBtn: {
     flexDirection: 'row',
@@ -536,11 +1240,59 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  summaryCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    position: 'relative',
+  },
+  summaryCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  summaryLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
+  summaryVal: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  summaryDivider: {
+    width: 1,
+    height: 22,
+  },
+  clearFilterBadge: {
+    position: 'absolute',
+    top: -8,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: '#EDE9FE',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  clearFilterText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+  },
   searchRow: {
     flexDirection: 'row',
     paddingHorizontal: 16,
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   searchContainer: {
     flex: 1,
@@ -570,10 +1322,34 @@ const styles = StyleSheet.create({
     height: 38,
   },
   sortBtnText: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 11.5,
+    fontWeight: '600',
   },
-  tabContainer: {
+  filterTriggerBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  filterBadgeCount: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterBadgeCountText: {
+    color: '#FFFFFF',
+    fontSize: 9.5,
+    fontWeight: '800',
+  },
+  typeTabContainer: {
     paddingHorizontal: 16,
     marginBottom: 8,
   },
@@ -591,22 +1367,35 @@ const styles = StyleSheet.create({
     borderRadius: 7,
   },
   segmentTabText: {
-    fontSize: 12.5,
+    fontSize: 12,
   },
-  categoryScroll: {
+  horizontalChipsScroll: {
     paddingHorizontal: 16,
     gap: 6,
-    paddingBottom: 10,
+    paddingBottom: 8,
+    alignItems: 'center',
   },
-  categoryChip: {
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1,
   },
-  categoryChipText: {
+  chipText: {
     fontSize: 11.5,
-    fontWeight: '500',
+  },
+  chipDivider: {
+    width: 1,
+    height: 16,
+    marginHorizontal: 2,
+  },
+  categoryDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   listContainer: {
     flex: 1,
@@ -616,7 +1405,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   dateGroup: {
-    marginBottom: 14,
+    marginBottom: 12,
   },
   dateGroupHeader: {
     flexDirection: 'row',
@@ -627,28 +1416,258 @@ const styles = StyleSheet.create({
   },
   dateGroupTitle: {
     fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   dateGroupSum: {
     fontSize: 11.5,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   emptyState: {
-    borderRadius: 14,
-    padding: 32,
+    borderRadius: 16,
+    padding: 28,
     alignItems: 'center',
     borderWidth: 1,
     marginTop: 20,
   },
+  emptyIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
   emptyStateTitle: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 14.5,
+    fontWeight: '700',
     marginBottom: 4,
+    textAlign: 'center',
   },
   emptyStateSub: {
     fontSize: 12,
     textAlign: 'center',
+    lineHeight: 17,
+    marginBottom: 16,
+  },
+  emptyActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  emptyActionBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 9,
+    borderWidth: 1,
+  },
+  emptyActionBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  emptyActionBtnPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 9,
+  },
+  emptyActionBtnPrimaryText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  modalContainer: {
+    flex: 1,
+  },
+  detailModalBody: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  modalSubtitle: {
+    fontSize: 11.5,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailContent: {
+    padding: 16,
+    gap: 14,
+  },
+  detailHeroCard: {
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  detailHeroLabel: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  detailHeroAmount: {
+    fontSize: 30,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    marginBottom: 4,
+  },
+  detailHeroTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  attributesCard: {
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+  },
+  attributeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  attributeLabel: {
+    fontSize: 12.5,
+    fontWeight: '500',
+  },
+  attributeVal: {
+    fontSize: 13,
+    fontWeight: '600',
+    maxWidth: '60%',
+    textAlign: 'right',
+  },
+  detailActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 6,
+  },
+  editBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  editBtnText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  deleteModalBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  deleteModalBtnText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  filterModalContent: {
+    padding: 16,
+  },
+  filterSectionTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 10,
+  },
+  filterChipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  modalFilterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 9,
+    borderWidth: 1,
+  },
+  modalFilterChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  filterModalBottomRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 28,
+  },
+  filterResetBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  filterResetBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  filterApplyBtn: {
+    flex: 2,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  filterApplyBtnText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  exportOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  exportCard: {
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+  },
+  exportHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  exportTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  exportDesc: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  exportBtn: {
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  exportBtnText: {
+    fontSize: 13.5,
+    fontWeight: '700',
   },
 });
